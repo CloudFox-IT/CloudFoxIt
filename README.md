@@ -32,7 +32,7 @@ Collection de scripts PowerShell pour l'administration Windows au quotidien :
 ## 📫 Me contacter
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sylvain-mirlaud-a8182437/)
-https://www.linkedin.com/in/sylvain-mirlaud-a8182437/
+
 ---
 
 *"L'automatisation aujourd'hui, c'est du temps gagné demain."*
