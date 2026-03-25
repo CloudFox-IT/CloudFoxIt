@@ -20,6 +20,8 @@
 ## 📂 Mes projets
 
 ### 🔷 [PowerShell Scripts](https://github.com/CloudFox-IT/PowerShell)
+👆 Clique sur le titre ci-dessus pour accéder au dépôt complet
+
 Collection de scripts PowerShell pour l'administration Windows au quotidien :
 - 📁 **AD** — Export et gestion des objets Active Directory
 - 📁 **WSUS** — Automatisation des mises à jour et vérifications
