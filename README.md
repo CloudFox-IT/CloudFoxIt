@@ -1,8 +1,14 @@
 # Salut, moi c'est Sylvain — CloudFox-IT
 
-🖥️ **Ing Systèmes Windows** en poste, passionné par l'automatisation et l'infrastructure.  
-🔧 Je construis des outils pour simplifier la vie des équipes IT.  
+🖥️ **Ingénieur Systèmes Windows** en poste, passionné par l'automatisation et l'infrastructure.
+🔧 Je construis des outils pour simplifier la vie des équipes IT.
 
+## 👋 À propos
+
+Au quotidien, j'administre des environnements Windows Server / Active Directory et je cherche
+systématiquement à automatiser les tâches répétitives : déploiements, supervision, gestion des
+mises à jour, audits de conformité... L'objectif est toujours le même : fiabiliser les opérations
+et redonner du temps aux équipes.
 
 ---
 
@@ -12,8 +18,14 @@
 ![Windows Server](https://img.shields.io/badge/Windows_Server-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 ![Active Directory](https://img.shields.io/badge/Active_Directory-0078D6?style=for-the-badge&logo=microsoft&logoColor=white)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=for-the-badge&logo=powershell&logoColor=white)
+![WSUS](https://img.shields.io/badge/WSUS-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![WinRM](https://img.shields.io/badge/WinRM-0078D6?style=for-the-badge&logo=windows&logoColor=white)
 
+---
 
+## 📊 Stats GitHub
+
+![Sylvain's GitHub stats](https://github-readme-stats.vercel.app/api?username=CloudFox-IT&show_icons=true&theme=default&hide_title=true)
 
 ---
 
