@@ -118,6 +118,7 @@ select,input{max-width:100%}
       <button class="tab" data-cat="sport">⚽ Paris sportifs</button>
       <button class="tab" data-cat="turf">🐎 Turf (chevaux)</button>
       <button class="tab" data-view="live">📡 Live sport</button>
+      <button class="tab" data-view="board">📋 Tableau turf</button>
       <button class="tab" data-view="race">🔎 Analyse course</button>
       <button class="tab" data-view="poker">🃏 Poker</button>
       <button class="tab" data-view="calc">🧮 Calculs</button>
@@ -293,6 +294,32 @@ select,input{max-width:100%}
       <div id="cc-res"></div>
     </div>
   </div>
+</div>
+<div id="boardView" class="hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">📋 Tableau turf du jour</h2>
+      <div class="actions" style="margin:0">
+        <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="tb-date"></label>
+        <button class="btn primary" id="tb-load">📡 Charger / actualiser les cotes</button>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-auto"> Auto toutes les 5 min</label>
+      </div>
+    </div>
+    <div id="tb-msg"></div>
+    <div class="filters" style="margin-top:10px">
+      <select id="tb-reu"><option value="">Toutes les réunions</option></select>
+      <select id="tb-disc"><option value="">Toutes disciplines</option><option>Trot attelé</option><option>Trot monté</option><option>Plat</option><option>Obstacle</option></select>
+      <select id="tb-when"><option value="up">À venir</option><option value="">Toute la journée</option></select>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-fav"> ⭐ Courses avec mes favoris</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-moves"> 🔥 Courses avec grosse baisse</label>
+    </div>
+  </div>
+  <div class="card">
+    <h2>🔥 Plus grosses baisses de cote (l'argent rentre)</h2>
+    <div class="tablewrap"><table id="tb-moves-t"></table></div>
+    <p class="sub">Variation = cote actuelle comparée à la cote de référence du matin (ou à ton premier relevé). Une forte baisse veut dire que beaucoup de parieurs jouent ce cheval.</p>
+  </div>
+  <div id="tb-board"></div>
 </div>
 <div id="pokerView" class="hidden">
   <div class="kpis" id="pk-kpis"></div>
@@ -622,8 +649,8 @@ $('table').onclick=e=>{
 
 $('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
-  const v=t.dataset.view||'bets';['bets','race','live','poker','calc'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
-  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return;
+  const v=t.dataset.view||'bets';['bets','race','live','poker','calc','board'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
+  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return; if(v==='board'){renderBoard();return;}
   cat=t.dataset.cat;
   if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
@@ -1189,17 +1216,9 @@ function reasons(h){
   return R;
 }
 async function genPronos(){
-  const date=$('pr-date').value,box=$('pr-msg');box.innerHTML='<div class="msg ok">Chargement du programme…</div>';$('pr-out').innerHTML='';
-  try{
-    const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];const jobs=[];
-    Rs.forEach(r=>(r.courses||[]).forEach(c=>jobs.push({r,c})));let done=0;const total=jobs.length;
-    const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();try{
-      const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
-      race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);recordFavs(race);state.races[key]=race;}catch(e){}
-      box.innerHTML=`<div class="msg ok">Analyse des courses… ${++done}/${total}</div>`;}};
-    await Promise.all([1,2,3,4,5,6].map(worker));
-    state.pronos={date,t:Date.now()};save();fillSaved();box.innerHTML='';renderPronos();
-  }catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+'). Les pronos ont besoin du chargement automatique.</div>';}
+  const date=$('pr-date').value,box=$('pr-msg');$('pr-out').innerHTML='';
+  try{await loadDay(date,box,false);state.pronos={date,t:Date.now()};save();renderPronos();}
+  catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+'). Les pronos ont besoin du chargement automatique.</div>';}
 }
 function renderPronos(){
   const date=$('pr-date').value,A=Object.values(state.races).filter(r=>r.date===date&&r.auto).map(analyseRace).filter(Boolean);
@@ -1294,6 +1313,73 @@ function calcComb(){const o=nums($('cc-odds').value),S=+$('cc-stake').value;if(!
 ['cc-odds','cc-stake'].forEach(i=>$(i).addEventListener('input',calcComb));
 function calcAll(){caRows();calcHedge();calcDutch();if(!$('ck-bank').value)$('ck-bank').value=Math.round((+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit);calcKelly();conv('dec');calcMargin();calcComb();}
 calcAll();
+
+// =================== TABLEAU TURF ===================
+async function loadDay(date,box,refreshOnlyUpcoming){
+  box.innerHTML='<div class="msg ok">Chargement du programme…</div>';
+  const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];const jobs=[];
+  Rs.forEach(r=>(r.courses||[]).forEach(c=>{const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,old=state.races[key];
+    if(refreshOnlyUpcoming&&old&&old.partants&&c.heureDepart&&c.heureDepart<Date.now()-10*6e4)return;jobs.push({r,c});}));
+  let done=0;const total=jobs.length;
+  const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();try{
+    const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
+    race.heure=c.heureDepart||race.heure;race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);race.snaps=race.snaps.slice(-40);recordFavs(race);state.races[key]=race;}catch(e){}
+    box.innerHTML=`<div class="msg ok">Chargement des courses… ${++done}/${total}</div>`;}};
+  await Promise.all([1,2,3,4,5,6].map(worker));
+  const lim=new Date(Date.now()-21*864e5).toISOString().slice(0,10);
+  Object.keys(state.races).forEach(k=>{const r=state.races[k];if(r.date<lim&&!(r.partants||[]).some(p=>isFav(p.nom)))delete state.races[k];});
+  save();fillSaved();box.innerHTML='';
+}
+function refOf(r,p){const f=r.snaps[0]&&r.snaps[0].c[p.num];return p.ref||f||null;}
+function varOf(r,p){const o=refOf(r,p);return o&&p.cote&&!p.np?(p.cote-o)/o:null;}
+function tbRaces(){
+  const date=$('tb-date').value;
+  return Object.values(state.races).filter(r=>r.date===date&&r.auto&&r.partants).sort((a,b)=>(a.heure||0)-(b.heure||0)||a.R-b.R||a.C-b.C);
+}
+function renderBoard(){
+  const all=tbRaces(),reu=$('tb-reu').value,disc=$('tb-disc').value,up=$('tb-when').value==='up',onlyFav=$('tb-fav').checked,onlyMv=$('tb-moves').checked;
+  const R=[...new Set(all.map(r=>r.R))];const cur_=reu;
+  $('tb-reu').innerHTML='<option value="">Toutes les réunions</option>'+R.map(n=>{const r=all.find(x=>x.R===n);return `<option value="${n}" ${String(n)===cur_?'selected':''}>R${n} ${esc(r.hippo)}</option>`;}).join('');
+  const list=all.filter(r=>(!reu||String(r.R)===reu)&&(!disc||r.disc===disc)&&(!up||!r.heure||r.heure>Date.now()-5*6e4)&&(!onlyFav||r.partants.some(p=>isFav(p.nom)))&&(!onlyMv||r.partants.some(p=>(varOf(r,p)||0)<=-0.2)));
+  // mouvements
+  const mv=[];all.filter(r=>!up||!r.heure||r.heure>Date.now()-5*6e4).forEach(r=>r.partants.forEach(p=>{const v=varOf(r,p);if(v!=null&&v<=-0.1)mv.push({r,p,v});}));
+  mv.sort((a,b)=>a.v-b.v);
+  let m='<thead><tr><th>Heure</th><th>Course</th><th class="num">N°</th><th>Cheval</th><th class="num">Réf.</th><th class="num">Actuelle</th><th class="num">Variation</th><th class="num">Forme</th><th></th></tr></thead><tbody>';
+  if(!mv.length)m+=`<tr><td colspan="9" class="empty">${all.length?'Pas de grosse baisse pour le moment. Actualise plus tard.':'Charge le programme pour voir les mouvements.'}</td></tr>`;
+  mv.slice(0,10).forEach(({r,p,v})=>{const sc=formScore(p.mus);m+=`<tr class="${isFav(p.nom)?'fav':''}"><td>${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</td><td>R${r.R}C${r.C} <span class="sub">${esc(r.hippo)}</span></td><td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${isFav(p.nom)?' ⭐':''}</td><td class="num">${refOf(r,p)}</td><td class="num"><b>${p.cote}</b></td><td class="num trend-down">▼ ${Math.round(-v*100)} %</td><td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td><button class="btn small" data-tbopen="${esc(r.key)}">🔎</button></td></tr>`;});
+  $('tb-moves-t').innerHTML=m+'</tbody>';
+  // tableau par course
+  if(!list.length){$('tb-board').innerHTML=`<div class="card"><p class="empty">${all.length?'Aucune course ne correspond aux filtres.':'Clique sur « Charger / actualiser les cotes » pour remplir le tableau avec toutes les courses du jour.'}</p></div>`;return;}
+  let openN=0;
+  $('tb-board').innerHTML=list.map(r=>{
+    const A=analyseRace(r),pick=A?A.top.p.num:null,val=A&&A.value?A.value.p.num:null;
+    const P=r.partants.filter(p=>!p.np&&+p.cote>0),inv=P.reduce((a,p)=>a+1/p.cote,0),rank={};[...P].sort((a,b)=>a.cote-b.cote).forEach((p,i)=>rank[p.num]=i+1);
+    const maxP=Math.max(...P.map(p=>1/p.cote/inv),0.01),started=r.heure&&r.heure<Date.now(),hasFav=r.partants.some(p=>isFav(p.nom));
+    const open=!started&&openN++<3||hasFav;
+    let t='<table><thead><tr><th class="num">N°</th><th>Cheval</th><th>Jockey / Driver</th><th>Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Réf.</th><th class="num">Cote</th><th class="num">Var.</th><th class="num">Proba</th><th class="num">Rang</th><th>Signaux</th></tr></thead><tbody>';
+    [...r.partants].sort((a,b)=>a.num-b.num).forEach(p=>{const v=varOf(r,p),sc=formScore(p.mus),pr=p.cote&&!p.np?1/p.cote/inv:null,sig=[];
+      if(p.num===pick)sig.push('<span class="pill s-gagne">🎯 Prono</span>');if(p.num===val)sig.push('<span class="pill s-rembourse">💎 Outsider</span>');
+      if(v!=null&&v<=-0.2)sig.push('<span class="pill s-gagne">🔥 Baisse</span>');if(v!=null&&v>=0.3)sig.push('<span class="pill s-perdu">🧊 Hausse</span>');
+      if(isFav(p.nom))sig.push('<span class="pill s-encours">⭐ Favori</span>');
+      t+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}"><td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}</td><td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
+        <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${refOf(r,p)||'—'}</td><td class="num"><b>${p.cote&&!p.np?p.cote:'—'}</b></td>
+        <td class="num">${v==null||Math.abs(v)<0.02?'—':`<span class="${v>0?'trend-up':'trend-down'}">${v>0?'▲':'▼'} ${Math.round(Math.abs(v)*100)} %</span>`}</td>
+        <td class="num">${pr==null?'—':(pr*100).toFixed(1)+' %<div class="bar" style="width:'+Math.round(pr/maxP*60)+'px;margin-left:auto"></div>'}</td>
+        <td class="num">${rank[p.num]?(rank[p.num]<=3?['🥇','🥈','🥉'][rank[p.num]-1]:rank[p.num]):'—'}</td><td>${sig.join(' ')}</td></tr>`;});
+    return `<details class="card" ${open?'open':''} style="padding:0"><summary style="cursor:pointer;padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
+      <b style="font-size:16px">${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</b>
+      <b>R${r.R}C${r.C}</b><span>${esc(r.hippo)} · ${esc(r.libelle)}</span><span class="sub">${esc(r.disc)}${r.distance?' · '+r.distance+' m':''} · ${P.length} partants${started?' · ⏱️ partie':''}</span>${hasFav?'<span class="pill s-encours">⭐</span>':''}
+      ${A?`<span class="sub" style="margin-left:auto">🎯 Prono : <b>${A.H.slice(0,A.n>=8?4:3).map(x=>x.p.num).join(' - ')}</b></span>`:''}</summary>
+      <div class="tablewrap" style="padding:0 16px 14px">${t}</tbody></table>
+      <div class="actions"><button class="btn small" data-tbopen="${esc(r.key)}">🔎 Analyse détaillée + courbe</button></div></div></details>`;}).join('');
+}
+$('tb-date').value=new Date().toISOString().slice(0,10);
+async function tbLoad(){try{await loadDay($('tb-date').value,$('tb-msg'),true);$('tb-msg').innerHTML=`<div class="msg ok">✅ Cotes à jour (${new Date().toLocaleTimeString('fr-FR')}).</div>`;}catch(e){$('tb-msg').innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';}renderBoard();}
+$('tb-load').onclick=tbLoad;
+let tbTimer=null;$('tb-auto').onchange=()=>{clearInterval(tbTimer);tbTimer=$('tb-auto').checked?setInterval(tbLoad,5*6e4):null;};
+['tb-reu','tb-disc','tb-when','tb-fav','tb-moves','tb-date'].forEach(i=>$(i).addEventListener('change',renderBoard));
+document.getElementById('boardView').addEventListener('click',e=>{const t=e.target.closest('[data-tbopen]');if(!t)return;document.querySelector('.tab[data-view="race"]').click();openRace(t.dataset.tbopen);});
+renderBoard();
 
 resetForm();render();
 })();
