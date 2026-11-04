@@ -79,6 +79,7 @@ canvas{width:100%;height:220px;display:block}
 .empty{color:var(--muted);text-align:center;padding:24px}
 .hidden{display:none!important}
 .quick{display:flex;gap:4px}
+.casq{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px}
 .mus{display:inline-flex;gap:2px;flex-wrap:wrap}
 .mus i{font-style:normal;font-size:11px;font-weight:700;min-width:18px;text-align:center;padding:1px 3px;border-radius:4px;background:var(--void-soft);color:var(--void)}
 .mus i.p1{background:var(--win-soft);color:var(--win)}
@@ -127,7 +128,7 @@ select,input{max-width:100%}
       <button class="tab" data-cat="turf">🐎 Turf (chevaux)</button>
       <button class="tab" data-view="live">📡 Live sport</button>
       <button class="tab" data-view="mypage">⭐ Ma page turf</button>
-      <button class="tab" data-view="board">📋 Tableau turf</button>
+      <button class="tab" data-view="board">📋 Partants & résultats</button>
       <button class="tab" data-view="race">🔎 Analyse course</button>
       <button class="tab" data-view="stats">📈 Stats & ROI</button>
       <button class="tab" data-view="poker">🃏 Poker</button>
@@ -316,6 +317,22 @@ select,input{max-width:100%}
       </div>
     </div>
     <div id="mp-msg"></div>
+    <details id="px-box" style="margin-top:10px">
+      <summary style="cursor:pointer;color:var(--accent)">⚙️ Connexion aux données PMU <span id="px-state" class="sub"></span></summary>
+      <p class="sub" style="margin-top:8px">Le PMU ne laisse pas un site web lire ses données directement depuis ton navigateur (c'est ce qui donne « Failed to fetch »). Les sites de turf qui affichent ces données passent par leur propre serveur. L'appli essaie donc d'abord le PMU en direct, puis des <b>relais publics gratuits</b>. Si aucun ne marche, ou pour plus de fiabilité, crée ton <b>propre relais gratuit</b> (5 minutes) :</p>
+      <ol class="sub" style="margin:0 0 8px 18px;padding:0">
+        <li>Crée un compte gratuit sur <a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener">dash.cloudflare.com</a>.</li>
+        <li>Menu <b>Workers & Pages</b> → <b>Create</b> → <b>Create Worker</b> → nomme-le <code>relais-pmu</code> → <b>Deploy</b>.</li>
+        <li><b>Edit code</b> : efface tout, colle le contenu du fichier <a href="https://github.com/CloudFox-IT/CloudFoxIt/blob/main/suivi-paris/relais-pmu-cloudflare.js" target="_blank" rel="noopener">relais-pmu-cloudflare.js</a>, puis <b>Deploy</b>.</li>
+        <li>Copie l'adresse du worker (du type <code>https://relais-pmu.ton-nom.workers.dev</code>) et colle-la ci-dessous.</li>
+      </ol>
+      <div class="filters">
+        <input id="px-url" placeholder="https://relais-pmu.ton-nom.workers.dev" style="flex:1;min-width:220px">
+        <button class="btn" id="px-save">Enregistrer</button>
+        <button class="btn primary" id="px-test">🔌 Tester la connexion</button>
+      </div>
+      <div id="px-msg"></div>
+    </details>
     <div class="kpis" id="mp-kpis" style="margin:12px 0 0"></div>
   </div>
   <div class="card">
@@ -370,9 +387,12 @@ select,input{max-width:100%}
 <div id="boardView" class="hidden">
   <div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-      <h2 style="margin:0">📋 Tableau turf du jour</h2>
+      <h2 style="margin:0">📋 Partants & résultats</h2>
       <div class="actions" style="margin:0">
-        <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="tb-date"></label>
+        <button class="btn small" id="tb-prev" title="Jour précédent">◀</button>
+        <input type="date" id="tb-date">
+        <button class="btn small" id="tb-next" title="Jour suivant">▶</button>
+        <button class="btn small" id="tb-today">Aujourd'hui</button>
         <button class="btn primary" id="tb-load">📡 Charger / actualiser les cotes</button>
         <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-auto"> Auto toutes les 5 min</label>
       </div>
@@ -381,7 +401,8 @@ select,input{max-width:100%}
     <div class="filters" style="margin-top:10px">
       <select id="tb-reu"><option value="">Toutes les réunions</option></select>
       <select id="tb-disc"><option value="">Toutes disciplines</option><option>Trot attelé</option><option>Trot monté</option><option>Plat</option><option>Obstacle</option></select>
-      <select id="tb-when"><option value="up">À venir</option><option value="">Toute la journée</option></select>
+      <select id="tb-when"><option value="">Toute la journée</option><option value="up">À venir</option><option value="done">Terminées (résultats)</option></select>
+      <select id="tb-order"><option value="reu">Par réunion</option><option value="heure">Par heure</option></select>
       <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-fav"> ⭐ Courses avec mes favoris</label>
       <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-moves"> 🔥 Courses avec grosse baisse</label>
     </div>
@@ -789,7 +810,30 @@ function musHtml(m){
 }
 function scoreColor(s){return s==null?'':s>=7?'s-gagne':s>=4.5?'s-encours':'s-perdu';}
 
-async function api(path){const r=await fetch(API+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+// --- accès PMU : direct, puis relais (proxy) si le navigateur bloque
+const PXNAMES=['ton relais perso','PMU en direct','relais public 1','relais public 2','relais public 3'];
+const PXS=[u=>state.proxy?state.proxy.replace(/\/+$/,'')+'/?url='+encodeURIComponent(u):null,u=>u,
+  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),u=>'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(u)];
+let pxOk=null;
+function pxShow(){$('px-state').textContent=pxOk==null?'':`— connecté via ${PXNAMES[pxOk]}`;}
+async function api(path){
+  const url=API+path,order=[...(pxOk!=null?[pxOk]:[]),...PXS.keys()].filter((v,i,a)=>a.indexOf(v)===i);let last='';
+  for(const i of order){const u=PXS[i](url);if(!u)continue;
+    try{const r=await fetch(u,{headers:{Accept:'application/json'}});
+      if(r.status===404||r.status===204){if(pxOk==null){pxOk=i;pxShow();}throw Object.assign(new Error('HTTP '+r.status),{final:true});}
+      if(!r.ok){last='HTTP '+r.status;continue;}
+      const t=await r.text();let j;try{j=JSON.parse(t);}catch(e){last='réponse illisible';continue;}
+      if(pxOk!==i){pxOk=i;pxShow();}return j;
+    }catch(e){if(e.final)throw e;last=e.message;}}
+  pxOk=null;pxShow();throw new Error((last||'Failed to fetch')+' — ouvre « ⚙️ Connexion aux données PMU » dans Ma page turf');
+}
+$('px-url').value=state.proxy||'';
+$('px-save').onclick=()=>{state.proxy=$('px-url').value.trim();save();pxOk=null;$('px-msg').innerHTML='<div class="msg ok">Enregistré. Clique sur « Tester la connexion ».</div>';};
+$('px-test').onclick=async()=>{$('px-msg').innerHTML='<div class="msg ok">Test en cours…</div>';pxOk=null;
+  try{const d=await api(pmuDate(new Date().toISOString().slice(0,10)));const n=((d.programme&&d.programme.reunions)||[]).length;
+    $('px-msg').innerHTML=`<div class="msg ok">✅ Ça marche via <b>${PXNAMES[pxOk]}</b> : ${n} réunion(s) aujourd'hui.</div>`;}
+  catch(e){$('px-msg').innerHTML=`<div class="msg">❌ Aucune connexion ne marche (${esc(e.message.split(' — ')[0])}). Crée ton relais perso avec les étapes ci-dessus.</div>`;}};
+
 
 $('r-date').value=new Date().toISOString().slice(0,10);
 $('r-load').onclick=async()=>{
@@ -809,7 +853,7 @@ $('r-prog').onclick=e=>{const b=e.target.closest('.chip');if(b)loadCourse(+b.dat
 
 async function fetchPartants(date,R,C){
   const d=await api(`${pmuDate(date)}/R${R}/C${C}/participants`);
-  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',def:p.deferre||'',oeil:p.oeilleres||'',
+  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',def:p.deferre||'',oeil:p.oeilleres||'',cas:p.urlCasaque||'',
     np:p.statut&&p.statut!=='PARTANT',cote:(p.dernierRapportDirect&&p.dernierRapportDirect.rapport)||(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null,
     ref:(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null}));
 }
@@ -870,7 +914,7 @@ function renderRace(){
     h+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}">
       <td><button class="star ${isFav(p.nom)?'on':''}" data-star="${esc(p.nom)}" title="Favori">${isFav(p.nom)?'★':'☆'}</button></td>
       <td><input type="checkbox" class="sel" value="${p.num}" ${p.np?'disabled':''}></td>
-      <td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${isFav(p.nom)&&state.favs[fkey(p.nom)].note?`<div class="sub">📝 ${esc(state.favs[fkey(p.nom)].note)}</div>`:''}</td>
+      <td class="num"><b>${p.num}</b></td><td>${casq(p)}<b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${isFav(p.nom)&&state.favs[fkey(p.nom)].note?`<div class="sub">📝 ${esc(state.favs[fkey(p.nom)].note)}</div>`:''}</td>
       <td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
       <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td>
       <td class="num"><input class="cotein" type="number" step="0.1" min="1" data-cote="${p.num}" value="${p.cote||''}" ${p.np?'disabled':''}></td>
@@ -970,6 +1014,7 @@ $('fav-add').onclick=()=>{const L=$('fav-new').value.split(/[\n,;]+/).map(x=>x.t
   $('fav-new').value='';$('fav-addmsg').textContent=L.length?`${n} ajouté(s)${L.length-n?`, ${L.length-n} déjà dans la liste`:''}.`:'';};
 fillSaved();renderFavs();
 // --- favoris : suivi des changements & scan du programme
+const casq=p=>p&&p.cas&&/^https:\/\//.test(p.cas)?`<img class="casq" src="${esc(p.cas)}" alt="" loading="lazy" onerror="this.remove()">`:'';
 const fmtEq=v=>v?String(v).toLowerCase().replace(/_/g,' ').replace(/^deferre /,'déferré ').replace(/anterieurs/,'antérieurs').replace(/posterieurs/,'postérieurs').replace(/oeilleres/,'œillères'):'';
 function favSnap(race,p){return {key:race.key,date:race.date,hippo:race.hippo,course:`${race.R?'R'+race.R+'C'+race.C+' ':''}${race.libelle}`,heure:race.heure||null,
   num:p.num,jockey:p.jockey,entr:p.entr,mus:p.mus,cote:p.cote,def:p.def||'',oeil:p.oeil||'',np:!!p.np,disc:race.disc,dist:race.distance||null};}
@@ -1407,11 +1452,12 @@ async function loadDay(date,box,refreshOnlyUpcoming){
   const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];const jobs=[];
   Rs.forEach(r=>(r.courses||[]).forEach(c=>{const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,old=state.races[key];
     if(old)raceMeta(old,r,c);
-    if(refreshOnlyUpcoming&&old&&old.partants&&c.heureDepart&&c.heureDepart<Date.now()-10*6e4)return;jobs.push({r,c});}));
+    if(refreshOnlyUpcoming&&old&&old.partants&&old.partants.length&&c.heureDepart&&c.heureDepart<Date.now()-10*6e4&&(!(old.arrivee&&old.arrivee.length)||old.rapports))return;jobs.push({r,c});}));
   let done=0;const total=jobs.length;
   const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();try{
     const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
-    raceMeta(race,r,c);race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);race.snaps=race.snaps.slice(-40);recordFavs(race);state.races[key]=race;}catch(e){}
+    raceMeta(race,r,c);race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);race.snaps=race.snaps.slice(-40);recordFavs(race);state.races[key]=race;
+    if(race.arrivee&&race.arrivee.length&&!race.rapports){try{const rp=parseRapports(await api(`${pmuDate(date)}/R${r.numOfficiel}/C${c.numOrdre}/rapports-definitifs`));if(Object.keys(rp).length)race.rapports=rp;}catch(e){}ingestRace(race);}}catch(e){}
     box.innerHTML=`<div class="msg ok">Chargement des courses… ${++done}/${total}</div>`;}};
   await Promise.all([1,2,3,4,5,6].map(worker));
   const lim=new Date(Date.now()-21*864e5).toISOString().slice(0,10);
@@ -1428,7 +1474,7 @@ function renderBoard(){
   const all=tbRaces(),reu=$('tb-reu').value,disc=$('tb-disc').value,up=$('tb-when').value==='up',onlyFav=$('tb-fav').checked,onlyMv=$('tb-moves').checked;
   const R=[...new Set(all.map(r=>r.R))];const cur_=reu;
   $('tb-reu').innerHTML='<option value="">Toutes les réunions</option>'+R.map(n=>{const r=all.find(x=>x.R===n);return `<option value="${n}" ${String(n)===cur_?'selected':''}>R${n} ${esc(r.hippo)}</option>`;}).join('');
-  const list=all.filter(r=>(!reu||String(r.R)===reu)&&(!disc||r.disc===disc)&&(!up||!r.heure||r.heure>Date.now()-5*6e4)&&(!onlyFav||r.partants.some(p=>isFav(p.nom)))&&(!onlyMv||r.partants.some(p=>(varOf(r,p)||0)<=-0.2)));
+  const list=all.filter(r=>(!reu||String(r.R)===reu)&&(!disc||r.disc===disc)&&(!up||!r.heure||r.heure>Date.now()-5*6e4)&&($('tb-when').value!=='done'||(r.arrivee&&r.arrivee.length))&&(!onlyFav||r.partants.some(p=>isFav(p.nom)))&&(!onlyMv||r.partants.some(p=>(varOf(r,p)||0)<=-0.2)));
   // mouvements
   const mv=[];all.filter(r=>!up||!r.heure||r.heure>Date.now()-5*6e4).forEach(r=>r.partants.forEach(p=>{const v=varOf(r,p);if(v!=null&&v<=-0.1)mv.push({r,p,v});}));
   mv.sort((a,b)=>a.v-b.v);
@@ -1450,34 +1496,43 @@ function renderBoard(){
   $('tb-favs').innerHTML=fh+'</tbody>';
   // tableau par course
   if(!list.length){$('tb-board').innerHTML=`<div class="card"><p class="empty">${all.length?'Aucune course ne correspond aux filtres.':'Clique sur « Charger / actualiser les cotes » pour remplir le tableau avec toutes les courses du jour.'}</p></div>`;return;}
-  let openN=0;
+  let openN=0,lastR=null;const byReu=$('tb-order').value==='reu';
+  if(byReu)list.sort((a,b)=>a.R-b.R||a.C-b.C);
   $('tb-board').innerHTML=list.map(r=>{
+    const head=byReu&&r.R!==lastR?`<h2 style="margin:18px 0 8px">R${r.R} · ${esc(r.hippo)}${r.pays&&r.pays!=='FRA'?' ('+esc(r.pays)+')':''} <span class="sub">${esc(r.disc)}</span></h2>`:'';lastR=r.R;
     const A=analyseRace(r),pick=A?A.top.p.num:null,val=A&&A.value?A.value.p.num:null;
     const P=r.partants.filter(p=>!p.np&&+p.cote>0),inv=P.reduce((a,p)=>a+1/p.cote,0),rank={};[...P].sort((a,b)=>a.cote-b.cote).forEach((p,i)=>rank[p.num]=i+1);
     const maxP=Math.max(...P.map(p=>1/p.cote/inv),0.01),started=r.heure&&r.heure<Date.now(),hasFav=r.partants.some(p=>isFav(p.nom));
-    const open=!started&&openN++<3||hasFav;
-    let t='<table><thead><tr><th class="num">N°</th><th>Cheval</th><th>Jockey / Driver</th><th>Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Réf.</th><th class="num">Cote</th><th class="num">Var.</th><th class="num">Proba</th><th class="num">Rang</th><th>Signaux</th></tr></thead><tbody>';
-    [...r.partants].sort((a,b)=>a.num-b.num).forEach(p=>{const v=varOf(r,p),sc=formScore(p.mus),pr=p.cote&&!p.np?1/p.cote/inv:null,sig=[];
+    const fin=!!(r.arrivee&&r.arrivee.length),posOf=n=>fin?r.arrivee.indexOf(n)+1:0;
+    const open=!started&&openN++<3||hasFav||(fin&&$('tb-when').value==='done');
+    let t='<table><thead><tr>'+(fin?'<th class="num">Arr.</th>':'')+'<th class="num">N°</th><th>Cheval</th><th>Jockey / Driver</th><th>Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Réf.</th><th class="num">Cote</th><th class="num">Var.</th><th class="num">Proba</th><th class="num">Rang</th><th>Signaux</th></tr></thead><tbody>';
+    [...r.partants].sort((a,b)=>fin?((posOf(a.num)||99)-(posOf(b.num)||99)||a.num-b.num):a.num-b.num).forEach(p=>{const v=varOf(r,p),sc=formScore(p.mus),pr=p.cote&&!p.np?1/p.cote/inv:null,sig=[];
       if(p.num===pick)sig.push('<span class="pill s-gagne">🎯 Prono</span>');if(p.num===val)sig.push('<span class="pill s-rembourse">💎 Outsider</span>');
       if(v!=null&&v<=-0.2)sig.push('<span class="pill s-gagne">🔥 Baisse</span>');if(v!=null&&v>=0.3)sig.push('<span class="pill s-perdu">🧊 Hausse</span>');
       if(isFav(p.nom))sig.push('<span class="pill s-encours">⭐ Favori</span>');
-      t+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}"><td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}</td><td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
+      const ps=posOf(p.num);
+      t+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}">${fin?`<td class="num"><b>${ps?(ps<=3?['🥇','🥈','🥉'][ps-1]:ps+'e'):'—'}</b></td>`:''}<td class="num"><b>${p.num}</b></td><td>${casq(p)}<b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}</td><td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
         <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${refOf(r,p)||'—'}</td><td class="num"><b>${p.cote&&!p.np?p.cote:'—'}</b></td>
         <td class="num">${v==null||Math.abs(v)<0.02?'—':`<span class="${v>0?'trend-up':'trend-down'}">${v>0?'▲':'▼'} ${Math.round(Math.abs(v)*100)} %</span>`}</td>
         <td class="num">${pr==null?'—':(pr*100).toFixed(1)+' %<div class="bar" style="width:'+Math.round(pr/maxP*60)+'px;margin-left:auto"></div>'}</td>
         <td class="num">${rank[p.num]?(rank[p.num]<=3?['🥇','🥈','🥉'][rank[p.num]-1]:rank[p.num]):'—'}</td><td>${sig.join(' ')}</td></tr>`;});
-    return `<details class="card" ${open?'open':''} style="padding:0"><summary style="cursor:pointer;padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
+    return head+`<details class="card" ${open?'open':''} style="padding:0"><summary style="cursor:pointer;padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
       <b style="font-size:16px">${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</b>
       <b>R${r.R}C${r.C}</b><span>${esc(r.hippo)} · ${esc(r.libelle)}</span><span class="sub">${esc(r.disc)}${r.distance?' · '+r.distance+' m':''} · ${P.length} partants${started?(r.arrivee&&r.arrivee.length?' · 🏁 '+r.arrivee.slice(0,5).join('-'):' · ⏱️ partie'):''}</span>${hasFav?'<span class="pill s-encours">⭐</span>':''}
       ${A?`<span class="sub" style="margin-left:auto">🎯 Prono : <b>${A.H.slice(0,A.n>=8?4:3).map(x=>x.p.num).join(' - ')}</b></span>`:''}</summary>
+      ${fin&&r.rapports?`<div class="msg ok" style="margin:0 16px 10px;color:var(--text)">🏁 Arrivée <b>${r.arrivee.slice(0,5).join(' - ')}</b>${rapHtml(r)}</div>`:''}
       <div class="tablewrap" style="padding:0 16px 14px">${t}</tbody></table>
       <div class="actions"><button class="btn small" data-tbopen="${esc(r.key)}">🔎 Analyse détaillée + courbe</button></div></div></details>`;}).join('');
 }
 $('tb-date').value=new Date().toISOString().slice(0,10);
 async function tbLoad(){try{await loadDay($('tb-date').value,$('tb-msg'),true);$('tb-msg').innerHTML=`<div class="msg ok">✅ Cotes à jour (${new Date().toLocaleTimeString('fr-FR')}).</div>`;}catch(e){$('tb-msg').innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';}renderBoard();}
 $('tb-load').onclick=tbLoad;
+const tbShift=n=>{const d=new Date($('tb-date').value+'T12:00');d.setDate(d.getDate()+n);tbGo(d.toISOString().slice(0,10));};
+function tbGo(date){$('tb-date').value=date;$('tb-when').value=date<new Date().toISOString().slice(0,10)?'done':'';renderBoard();if(!tbRaces().length)tbLoad();}
+$('tb-prev').onclick=()=>tbShift(-1);$('tb-next').onclick=()=>tbShift(1);$('tb-today').onclick=()=>tbGo(new Date().toISOString().slice(0,10));
 let tbTimer=null;$('tb-auto').onchange=()=>{clearInterval(tbTimer);tbTimer=$('tb-auto').checked?setInterval(tbLoad,5*6e4):null;};
-['tb-reu','tb-disc','tb-when','tb-fav','tb-moves','tb-date'].forEach(i=>$(i).addEventListener('change',renderBoard));
+['tb-reu','tb-disc','tb-when','tb-order','tb-fav','tb-moves'].forEach(i=>$(i).addEventListener('change',renderBoard));
+$('tb-date').addEventListener('change',()=>tbGo($('tb-date').value));
 document.getElementById('boardView').addEventListener('click',e=>{const t=e.target.closest('[data-tbopen]');if(!t)return;document.querySelector('.tab[data-view="race"]').click();openRace(t.dataset.tbopen);});
 renderBoard();
 
