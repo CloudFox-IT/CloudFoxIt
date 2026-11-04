@@ -96,6 +96,7 @@ select,input{max-width:100%}
 .alert{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:10px;border:1px solid var(--border);margin-bottom:8px;background:var(--bg)}
 .alert.mene{border-color:var(--loss);background:var(--loss-soft)}
 .alert.nul{border-color:var(--pend);background:var(--pend-soft)}
+.alert.arb{border-color:var(--win);background:var(--win-soft)}
 .alert.envol,.alert.chute{border-color:var(--accent);background:var(--accent-soft)}
 .live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--loss);margin-right:6px;animation:blink 1.2s infinite}
 @keyframes blink{50%{opacity:.25}}
@@ -119,6 +120,7 @@ select,input{max-width:100%}
       <button class="tab" data-view="live">📡 Live sport</button>
       <button class="tab" data-view="race">🔎 Analyse course</button>
       <button class="tab" data-view="poker">🃏 Poker</button>
+      <button class="tab" data-view="calc">🧮 Calculs</button>
     </div>
   </header>
 
@@ -228,6 +230,70 @@ select,input{max-width:100%}
     <p class="sub">Les données sont enregistrées dans ce navigateur. Fais une sauvegarde JSON de temps en temps pour ne rien perdre.</p>
   </div>
   </div>
+<div id="calcView" class="hidden">
+  <div class="two">
+    <div class="card" id="c-arb">
+      <h2>💰 Arbitrage (surebet)</h2>
+      <p class="sub">Mets la meilleure cote de chaque issue, chacune chez un bookmaker différent. Si la somme des probabilités est sous 100 %, tu gagnes quoi qu'il arrive.</p>
+      <div class="filters"><select id="ca-n"><option value="2">2 issues (tennis, basket, gagnant/placé…)</option><option value="3">3 issues (1 N 2)</option></select>
+        <label style="flex-direction:row;align-items:center;gap:6px">Mise totale (€) <input type="number" id="ca-total" value="100" step="1" min="0" style="width:90px"></label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="ca-round" checked> Arrondir à 0,10 €</label></div>
+      <div class="tablewrap"><table id="ca-rows"></table></div>
+      <div id="ca-res"></div>
+    </div>
+    <div class="card">
+      <h2>🛡️ Couverture live / cash-out maison</h2>
+      <p class="sub">Tu as un pari en cours. Combien jouer sur l'issue contraire, maintenant en live, pour gagner la même somme quoi qu'il arrive ?</p>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+        <label>Mise initiale (€) <input type="number" id="ch-s" value="10" step="0.5"></label>
+        <label>Cote initiale <input type="number" id="ch-a" value="3" step="0.01"></label>
+        <label>Cote live contraire n°1 <input type="number" id="ch-b1" value="1.8" step="0.01"></label>
+        <label>Cote live contraire n°2 <input type="number" id="ch-b2" placeholder="nul (si 1N2)" step="0.01"></label>
+      </div>
+      <div id="ch-res"></div>
+    </div>
+  </div>
+  <div class="two">
+    <div class="card">
+      <h2>🐎 Dutching (plusieurs chevaux, même gain)</h2>
+      <p class="sub">Répartit ta mise sur plusieurs chevaux pour gagner la même somme si n'importe lequel gagne.</p>
+      <div class="grid" style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <label>Cotes (séparées par des espaces) <input id="cd-odds" value="4.5 6 9"></label>
+        <label>Mise totale (€) <input type="number" id="cd-total" value="10" step="0.5"></label>
+      </div>
+      <div id="cd-res"></div>
+    </div>
+    <div class="card">
+      <h2>📐 Value bet & mise de Kelly</h2>
+      <p class="sub">Si tu penses qu'une issue a plus de chances que ce que dit la cote, c'est une value. Kelly calcule la mise optimale (on utilise un quart de Kelly, plus prudent).</p>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+        <label>Cote <input type="number" id="ck-odd" value="2.4" step="0.01"></label>
+        <label>Ta proba (%) <input type="number" id="ck-p" value="48" step="1"></label>
+        <label>Bankroll (€) <input type="number" id="ck-bank" step="1"></label>
+      </div>
+      <div id="ck-res"></div>
+    </div>
+  </div>
+  <div class="two">
+    <div class="card">
+      <h2>🔁 Convertir une cote</h2>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+        <label>Décimale <input id="cv-dec" value="2.50"></label><label>Fractionnaire <input id="cv-frac"></label><label>Américaine <input id="cv-us"></label><label>Probabilité (%) <input id="cv-p"></label>
+      </div>
+      <h2 style="margin-top:16px">📊 Marge d'un marché</h2>
+      <label>Toutes les cotes du marché (espaces) <input id="cm-odds" value="1.85 3.60 4.40"></label>
+      <div id="cm-res"></div>
+    </div>
+    <div class="card">
+      <h2>🔗 Combiné</h2>
+      <div class="grid" style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <label>Cotes des sélections (espaces) <input id="cc-odds" value="1.45 1.60 1.30"></label>
+        <label>Mise (€) <input type="number" id="cc-stake" value="5" step="0.5"></label>
+      </div>
+      <div id="cc-res"></div>
+    </div>
+  </div>
+</div>
 <div id="pokerView" class="hidden">
   <div class="kpis" id="pk-kpis"></div>
   <div class="card">
@@ -283,6 +349,7 @@ select,input{max-width:100%}
       <label><input type="checkbox" data-rule="mene"> <span>🔻 <b>Favori mené</b> — le favori d'avant-match perd au score</span></label>
       <label><input type="checkbox" data-rule="nul"> <span>🤝 <b>Favori accroché</b> — score nul alors qu'il devait gagner</span></label>
       <label><input type="checkbox" data-rule="envol"> <span>🚀 <b>Cote du favori qui s'envole</b> — hausse ≥ seuil</span></label>
+      <label><input type="checkbox" data-rule="arb"> <span>💰 <b>Arbitrage</b> — meilleures cotes de plusieurs bookmakers = gain garanti</span></label>
       <label><input type="checkbox" data-rule="chute"> <span>📉 <b>Cote de l'outsider qui chute</b> — baisse ≥ seuil</span></label>
     </div>
     <div class="filters" style="margin-top:10px">
@@ -555,8 +622,8 @@ $('table').onclick=e=>{
 
 $('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
-  const v=t.dataset.view||'bets';['bets','race','live','poker'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
-  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;}
+  const v=t.dataset.view||'bets';['bets','race','live','poker','calc'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
+  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return;
   cat=t.dataset.cat;
   if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
@@ -860,7 +927,7 @@ renderScan();
 window.addEventListener('resize',()=>{if(cur&&!$('raceView').classList.contains('hidden'))drawOdds();});
 
 // =================== LIVE SPORT ===================
-const LDEF={key:'',sports:['soccer_france_ligue_one','soccer_uefa_champs_league'],interval:300,seuil:1.8,vari:30,rules:{mene:true,nul:true,envol:true,chute:false},sound:true,notif:false};
+const LDEF={key:'',sports:['soccer_france_ligue_one','soccer_uefa_champs_league'],interval:300,seuil:1.8,vari:30,rules:{mene:true,nul:true,envol:true,chute:false,arb:true},sound:true,notif:false};
 state.live=Object.assign({},LDEF,state.live||{});state.live.rules=Object.assign({},LDEF.rules,state.live.rules);
 let LEV={}, lAlerts=[], lSeen=new Set(), lTimer=null, demo=false, sportsMeta={};
 const OAPI='https://api.the-odds-api.com/v4/sports/';
@@ -902,11 +969,18 @@ function avgOdds(ev){
   const a=n=>acc[n]?Math.round(acc[n].reduce((x,y)=>x+y,0)/acc[n].length*100)/100:null;
   return {h:a(ev.home_team),d:a('Draw'),a:a(ev.away_team)};
 }
+function bestOdds(ev){
+  const B={};(ev.bookmakers||[]).forEach(b=>(b.markets||[]).filter(m=>m.key==='h2h').forEach(m=>m.outcomes.forEach(o=>{
+    const k=o.name===ev.home_team?'h':o.name===ev.away_team?'a':o.name==='Draw'?'d':null;if(k&&(!B[k]||o.price>B[k].p))B[k]={p:o.price,bk:b.title||b.key};})));
+  return B;
+}
+function arbOf(e){const B=e.best;if(!B||!B.h||!B.a)return null;const ks=B.d?['h','d','a']:['h','a'];const inv=ks.reduce((s,k)=>s+1/B[k].p,0);return inv<1?{inv,ks,pc:(1/inv-1)*100}:null;}
 function upsert(o){ // o: {id,sport,comp,home,away,start,odds?,score?,completed?}
   const now=Date.now();let e=LEV[o.id];
   if(!e)e=LEV[o.id]={id:o.id,hist:[],open:null,openLive:false};
   Object.assign(e,{sport:o.sport??e.sport,comp:o.comp??e.comp,home:o.home,away:o.away,start:o.start});
   if(o.score)e.score=o.score; if(o.completed!=null)e.completed=o.completed;
+  if(o.best)e.best=o.best;
   if(o.odds&&(o.odds.h||o.odds.a)){
     e.odds=o.odds; const last=e.hist[e.hist.length-1];
     if(!last||JSON.stringify(last.o)!==JSON.stringify(o.odds))e.hist.push({t:now,o:o.odds});
@@ -918,7 +992,7 @@ const isLive=e=>Date.now()>=e.start&&!e.completed;
 
 // --- détection
 function lEval(e){
-  const out=[],f=fav(e);if(!f||!isLive(e))return out;
+  const out=[],f=fav(e);if(!f)return out;if(!isLive(e)){const ab=arbOf(e);if(ab&&L.rules.arb)out.push({type:'arb',k:ab.pc.toFixed(1),txt:`💰 Arbitrage avant-match <b>+${ab.pc.toFixed(2)} %</b> : ${ab.ks.map(k=>`${k==='h'?esc(e.home):k==='a'?esc(e.away):'Nul'} ${e.best[k].p} (${esc(e.best[k].bk)})`).join(' · ')}`});return out;}
   const o=f==='h'?'a':'h', name=f==='h'?e.home:e.away, oname=f==='h'?e.away:e.home, op=e.open[f];
   const s=e.score, sc=s?`${s.h}-${s.a}`:'';
   if(op<=L.seuil&&s){
@@ -928,6 +1002,8 @@ function lEval(e){
   }
   if(e.odds&&e.odds[f]&&L.rules.envol&&op<=L.seuil&&e.odds[f]>=op*(1+L.vari/100))
     out.push({type:'envol',k:'',txt:`🚀 Cote du favori <b>${esc(name)}</b> : ${op} → <b>${e.odds[f]}</b> (+${Math.round((e.odds[f]/op-1)*100)} %)`});
+  const ab=arbOf(e);
+  if(ab&&L.rules.arb)out.push({type:'arb',k:ab.pc.toFixed(1),txt:`💰 Arbitrage <b>+${ab.pc.toFixed(2)} %</b> : ${ab.ks.map(k=>`${k==='h'?esc(e.home):k==='a'?esc(e.away):'Nul'} ${e.best[k].p} (${esc(e.best[k].bk)})`).join(' · ')}`});
   const oo=e.open[o];
   if(e.odds&&e.odds[o]&&L.rules.chute&&e.odds[o]<=oo*(1-L.vari/100))
     out.push({type:'chute',k:'',txt:`📉 Cote de l'outsider <b>${esc(oname)}</b> : ${oo} → <b>${e.odds[o]}</b> (${Math.round((e.odds[o]/oo-1)*100)} %)`});
@@ -967,15 +1043,17 @@ function lRender(){
     h+=`<tr class="${(e.sits||[]).length?'fav':''}"><td>${live?'<span class="live-dot"></span>Live '+Math.max(0,Math.floor((Date.now()-e.start)/6e4))+"'":new Date(e.start).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})}</td>
       <td class="desc"><b>${esc(e.home)}</b> – <b>${esc(e.away)}</b><div class="sub">${esc(e.comp||'')}${e.openLive?' · cote de départ relevée en live':''}</div></td>
       <td class="num scorebox">${s?s.h+' - '+s.a:'—'}</td><td class="num">${oc(e,'h')}</td><td class="num">${oc(e,'d')}</td><td class="num">${oc(e,'a')}</td>
-      <td>${spark(e)}</td><td>${(e.sits||[]).map(x=>`<span class="pill s-${x.type==='mene'?'perdu':x.type==='nul'?'encours':'rembourse'}">${{mene:'🔻 Favori mené',nul:'🤝 Favori accroché',envol:'🚀 Cote s\'envole',chute:'📉 Outsider chute'}[x.type]}</span>`).join(' ')||'<span class="sub">—</span>'}</td>
+      <td>${spark(e)}</td><td>${(e.sits||[]).map(x=>`<span class="pill s-${x.type==='arb'?'gagne':x.type==='mene'?'perdu':x.type==='nul'?'encours':'rembourse'}">${{arb:'💰 Arbitrage',mene:'🔻 Favori mené',nul:'🤝 Favori accroché',envol:'🚀 Cote s\'envole',chute:'📉 Outsider chute'}[x.type]}</span>`).join(' ')||'<span class="sub">—</span>'}</td>
       <td><button class="btn small" data-lbet="${esc(e.id)}">🎟️ Parier</button></td></tr>`;
   }
   $('l-table').innerHTML=h+'</tbody>';
-  $('l-alerts').innerHTML=lAlerts.length?lAlerts.map(a=>`<div class="alert ${a.type}"><div><span class="sub">${new Date(a.t).toLocaleTimeString('fr-FR')}</span> · ${a.txt}</div><button class="btn small" data-lbet="${esc(a.id)}" data-ltype="${a.type}">🎟️ Parier</button></div>`).join(''):'<p class="empty">Aucune alerte pour l\'instant. Elles apparaîtront ici dès qu\'une situation est détectée.</p>';
+  $('l-alerts').innerHTML=lAlerts.length?lAlerts.map(a=>`<div class="alert ${a.type}"><div><span class="sub">${new Date(a.t).toLocaleTimeString('fr-FR')}</span> · ${a.txt}</div>${a.type==='arb'?`<button class="btn small" data-larb="${esc(a.id)}">🧮 Calculer les mises</button>`:`<button class="btn small" data-lbet="${esc(a.id)}" data-ltype="${a.type}">🎟️ Parier</button>`}</div>`).join(''):'<p class="empty">Aucune alerte pour l\'instant. Elles apparaîtront ici dès qu\'une situation est détectée.</p>';
 }
 $('l-show').onchange=lRender;
 $('l-clear').onclick=()=>{lAlerts=[];lRender();};
 document.getElementById('liveView').addEventListener('click',ev=>{
+  const ar=ev.target.closest('[data-larb]');if(ar){const e=LEV[ar.dataset.larb];if(!e||!e.best)return;const ks=e.best.d?['h','d','a']:['h','a'];
+    document.querySelector('.tab[data-view="calc"]').click();$('ca-n').value=ks.length;caRows(ks.map(k=>[k==='h'?e.home:k==='a'?e.away:'Nul',e.best[k].p,e.best[k].bk]));$('c-arb').scrollIntoView({behavior:'smooth'});return;}
   const b=ev.target.closest('[data-lbet]');if(!b)return;const e=LEV[b.dataset.lbet];if(!e)return;
   const f=fav(e)||'h', pickSide=b.dataset.ltype==='chute'?(f==='h'?'a':'h'):f;
   document.querySelector('.tab[data-cat="sport"]').click();$('f-cat').value='sport';toggleCat();
@@ -990,7 +1068,7 @@ async function lTick(){
     for(const sk of L.sports){
       const meta=sportsMeta[sk]||{}, sport=SPORTMAP[meta.group]||(sk.startsWith('soccer')?'Football':sk.startsWith('basketball')?'Basket':sk.startsWith('tennis')?'Tennis':'Autre');
       const [odds,scores]=await Promise.all([oget(sk+'/odds/','&regions=eu&markets=h2h&oddsFormat=decimal'),oget(sk+'/scores/').catch(()=>[])]);
-      odds.forEach(ev=>upsert({id:ev.id,sport,comp:ev.sport_title||meta.title,home:ev.home_team,away:ev.away_team,start:Date.parse(ev.commence_time),odds:avgOdds(ev)}));
+      odds.forEach(ev=>upsert({id:ev.id,sport,comp:ev.sport_title||meta.title,home:ev.home_team,away:ev.away_team,start:Date.parse(ev.commence_time),odds:avgOdds(ev),best:bestOdds(ev)}));
       scores.forEach(s=>{if(!LEV[s.id]&&!s.scores)return;
         const g=n=>{const x=(s.scores||[]).find(q=>q.name===n);return x?+x.score:null;};
         const sc=s.scores?{h:g(s.home_team),a:g(s.away_team)}:null;
@@ -1022,7 +1100,9 @@ $('l-demo').onclick=()=>{
     if(Math.random()<.18){const fav=e.open.h<e.open.a?'h':'a';const r=Math.random();s[r<.55?(fav==='h'?'a':'h'):fav]++;}
     const diff=s.h-s.a, k=1+Math.random()*.06-.03;
     const h=Math.max(1.02,+(e.open.h*Math.pow(1.9,-diff)*k).toFixed(2)), a=Math.max(1.02,+(e.open.a*Math.pow(1.9,diff)*k).toFixed(2));
-    upsert({id:e.id,home:e.home,away:e.away,start:e.start,score:s,odds:{h,d:+(e.open.d*(diff?1.6:0.85)).toFixed(2),a}});});
+    const od={h,d:+(e.open.d*(diff?1.6:0.85)).toFixed(2),a},BK=['Winamax','Betclic','Unibet','PMU'],best={};
+    Object.keys(od).forEach(k=>best[k]={p:+(od[k]*(1+Math.random()*0.09)).toFixed(2),bk:BK[Math.floor(Math.random()*4)]});
+    upsert({id:e.id,home:e.home,away:e.away,start:e.start,score:s,odds:od,best});});
     lEvalAll();lRender();$('l-last').textContent='Démo — chaque actualisation = 4 minutes de match';};
   tick();lTimer=setInterval(tick,3000);$('l-demo').textContent='⏹️ Arrêter la démo';lmsg('🎮 Mode démo : matchs fictifs pour voir comment fonctionnent les alertes.',true);
 };
@@ -1149,6 +1229,71 @@ $('pr-out').addEventListener('click',e=>{const t=e.target.closest('button');if(!
   $('f-ttype').value=t.dataset.type;$('f-horses').value=p.num;$('f-odd').value=t.dataset.type==='Simple gagnant'?p.cote:'';$('f-stake').value=t.dataset.stake;
   $('betForm').scrollIntoView({behavior:'smooth'});});
 renderPronos();
+
+// =================== CALCULATEURS ===================
+const nums=s=>String(s||'').replace(/,/g,'.').split(/[\s;]+/).map(Number).filter(x=>x>1);
+const res=(id,html)=>{$(id).innerHTML=`<div class="msg ok" style="color:var(--text);background:var(--bg);border:1px solid var(--border)">${html}</div>`;};
+const bad=(id,t)=>{$(id).innerHTML=`<div class="msg">${t}</div>`;};
+function caRows(pref){
+  const n=+$('ca-n').value,lab=n===3?['1 (domicile)','N (nul)','2 (extérieur)']:['Issue A','Issue B'];
+  const old=[...document.querySelectorAll('#ca-rows tbody tr')].map(r=>[...r.querySelectorAll('input')].map(i=>i.value));
+  let h='<thead><tr><th>Issue</th><th class="num">Cote</th><th>Bookmaker</th><th class="num">Mise</th><th class="num">Retour</th></tr></thead><tbody>';
+  for(let i=0;i<n;i++){const v=(pref&&pref[i])||old[i]||[lab[i],['2.10','2.05','4.2'][i]||'',''];
+    h+=`<tr><td><input value="${esc(v[0])}" style="width:130px"></td><td class="num"><input class="cotein" type="number" step="0.01" value="${esc(v[1])}"></td><td><input value="${esc(v[2])}" style="width:110px" placeholder="Winamax…"></td><td class="num" data-st></td><td class="num" data-rt></td></tr>`;}
+  $('ca-rows').innerHTML=h+'</tbody>';calcArb();
+}
+function calcArb(){
+  const R=[...document.querySelectorAll('#ca-rows tbody tr')],o=R.map(r=>+r.querySelectorAll('input')[1].value),T=+$('ca-total').value||0;
+  if(o.some(x=>!(x>1))){bad('ca-res','Saisis toutes les cotes.');return;}
+  const inv=o.reduce((a,x)=>a+1/x,0),rd=$('ca-round').checked;
+  const st=o.map(x=>{const v=T*(1/x)/inv;return rd?Math.round(v*10)/10:Math.round(v*100)/100;}),tot=st.reduce((a,b)=>a+b,0),ret=o.map((x,i)=>x*st[i]);
+  R.forEach((r,i)=>{r.querySelector('[data-st]').textContent=eur(st[i]);r.querySelector('[data-rt]').textContent=eur(ret[i]);});
+  const minP=Math.min(...ret)-tot,pc=(1/inv-1)*100;
+  if(inv<1)res('ca-res',`✅ <b>Arbitrage possible : +${pc.toFixed(2)} %</b> garanti.<br>Mise totale ${eur(tot)} → bénéfice minimum <b class="pos">${eur(minP)}</b> quelle que soit l'issue.<br><span class="sub">Somme des probabilités : ${(inv*100).toFixed(2)} %. Place les paris vite : les cotes bougent, surtout en live.</span>`);
+  else bad('ca-res',`❌ Pas d'arbitrage : somme des probabilités ${(inv*100).toFixed(2)} % (il faut moins de 100 %). Tu perdrais ${eur(-minP)} au pire.`);
+}
+$('ca-n').onchange=()=>caRows();['ca-total','ca-round'].forEach(i=>$(i).addEventListener('input',calcArb));$('ca-rows').addEventListener('input',calcArb);
+function calcHedge(){
+  const S=+$('ch-s').value,A=+$('ch-a').value,B=[+$('ch-b1').value,+$('ch-b2').value].filter(x=>x>1);
+  if(!(S>0&&A>1&&B.length)){bad('ch-res','Remplis la mise, la cote initiale et au moins une cote live.');return;}
+  const H=B.map(b=>S*A/b),HT=H.reduce((a,b)=>a+b,0),prof=S*A-S-HT;
+  res('ch-res',`Mise${H.length>1?'s':''} de couverture : ${H.map((h,i)=>`<b>${eur(h)}</b> à ${B[i]}`).join(' + ')}<br>Résultat garanti : <b class="${prof>=0?'pos':'neg'}">${prof>=0?'+':''}${eur(prof)}</b> quoi qu'il arrive.
+    <br><span class="sub">${prof>=0?'Tu sécurises un gain.':'Couvrir maintenant limite la perte à ce montant (sinon tu risques '+eur(S)+').'} Sans couverture : +${eur(S*A-S)} si ton pari passe, -${eur(S)} sinon.</span>`);
+}
+['ch-s','ch-a','ch-b1','ch-b2'].forEach(i=>$(i).addEventListener('input',calcHedge));
+function calcDutch(){
+  const o=nums($('cd-odds').value),T=+$('cd-total').value;if(!o.length||!(T>0)){bad('cd-res','Saisis au moins une cote et une mise.');return;}
+  const inv=o.reduce((a,x)=>a+1/x,0),st=o.map(x=>T/x/inv),g=T/inv;
+  res('cd-res',`${o.map((x,i)=>`Cote ${x} → <b>${eur(st[i])}</b>`).join('<br>')}<br>Si l'un d'eux gagne : retour <b>${eur(g)}</b>, soit <b class="${g>=T?'pos':'neg'}">${g>=T?'+':''}${eur(g-T)}</b>.<br><span class="sub">Ça revient à jouer une seule cote de ${(1/inv).toFixed(2)}. ${inv>=1?'⚠️ Avec ces cotes, tu perds même si un des chevaux gagne : retire-en.':''}</span>`);
+}
+['cd-odds','cd-total'].forEach(i=>$(i).addEventListener('input',calcDutch));
+function calcKelly(){
+  const o=+$('ck-odd').value,p=(+$('ck-p').value)/100,B=+$('ck-bank').value||0;if(!(o>1&&p>0&&p<1)){bad('ck-res','Saisis une cote et une proba entre 1 et 99 %.');return;}
+  const ev=p*o-1,k=(p*(o-1)-(1-p))/(o-1),q=Math.min(Math.max(k/4,0),0.05);
+  res('ck-res',`Proba selon la cote : <b>${(100/o).toFixed(1)} %</b> · ta proba : <b>${(p*100).toFixed(1)} %</b><br>Espérance : <b class="${ev>0?'pos':'neg'}">${ev>0?'+':''}${(ev*100).toFixed(1)} %</b> par euro misé ${ev>0?'(value bet ✅)':'(pas de value ❌, ne joue pas)'}<br>${ev>0?`Mise conseillée (¼ Kelly, max 5 %) : <b>${(q*100).toFixed(1)} %</b> de ta bankroll = <b>${eur(B*q)}</b>`:''}
+    <br><span class="sub">Ce calcul ne vaut que si ta proba est juste. Si tu la surestimes, la value n'existe pas.</span>`);
+}
+['ck-odd','ck-p','ck-bank'].forEach(i=>$(i).addEventListener('input',calcKelly));
+function gcd(a,b){return b?gcd(b,a%b):a;}
+function conv(from){
+  let d;const v=$('cv-'+from).value.replace(',','.').trim();
+  if(from==='dec')d=+v;else if(from==='frac'){const m=v.match(/^(\d+)\s*\/\s*(\d+)$/);d=m?1+m[1]/m[2]:NaN;}else if(from==='us'){const x=+v;d=x>0?1+x/100:x<0?1+100/-x:NaN;}else d=100/+v;
+  if(!(d>1))return;
+  const n=Math.round((d-1)*100),g=gcd(n,100);
+  if(from!=='dec')$('cv-dec').value=d.toFixed(2);if(from!=='frac')$('cv-frac').value=`${n/g}/${100/g}`;
+  if(from!=='us')$('cv-us').value=d>=2?'+'+Math.round((d-1)*100):Math.round(-100/(d-1));if(from!=='p')$('cv-p').value=(100/d).toFixed(1);
+}
+['dec','frac','us','p'].forEach(k=>$('cv-'+k).addEventListener('input',()=>conv(k)));
+function calcMargin(){const o=nums($('cm-odds').value);if(o.length<2){bad('cm-res','Saisis au moins 2 cotes.');return;}
+  const inv=o.reduce((a,x)=>a+1/x,0);
+  res('cm-res',`Marge du bookmaker : <b>${((inv-1)*100).toFixed(2)} %</b>${inv<1?' (négative : arbitrage possible !)':''}<br>Cotes « justes » sans marge : ${o.map(x=>(x*inv).toFixed(2)).join(' · ')}<br><span class="sub">Plus la marge est basse, plus les cotes sont bonnes pour toi. Compare les bookmakers sur le même match.</span>`);}
+$('cm-odds').addEventListener('input',calcMargin);
+function calcComb(){const o=nums($('cc-odds').value),S=+$('cc-stake').value;if(!o.length){bad('cc-res','Saisis au moins une cote.');return;}
+  const c=o.reduce((a,x)=>a*x,1),p=o.reduce((a,x)=>a/x,1);
+  res('cc-res',`Cote totale : <b>${c.toFixed(2)}</b> · gain potentiel <b>${eur(S*c)}</b> (bénéfice ${eur(S*c-S)})<br><span class="sub">Chance que tout passe (d'après les cotes) : ${(p*100).toFixed(1)} %. Chaque sélection ajoutée multiplie aussi la marge du bookmaker.</span>`);}
+['cc-odds','cc-stake'].forEach(i=>$(i).addEventListener('input',calcComb));
+function calcAll(){caRows();calcHedge();calcDutch();if(!$('ck-bank').value)$('ck-bank').value=Math.round((+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit);calcKelly();conv('dec');calcMargin();calcComb();}
+calcAll();
 
 resetForm();render();
 })();
