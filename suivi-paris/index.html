@@ -79,6 +79,7 @@ canvas{width:100%;height:220px;display:block}
 .empty{color:var(--muted);text-align:center;padding:24px}
 .hidden{display:none!important}
 .quick{display:flex;gap:4px}
+.casq{width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px}
 .mus{display:inline-flex;gap:2px;flex-wrap:wrap}
 .mus i{font-style:normal;font-size:11px;font-weight:700;min-width:18px;text-align:center;padding:1px 3px;border-radius:4px;background:var(--void-soft);color:var(--void)}
 .mus i.p1{background:var(--win-soft);color:var(--win)}
@@ -848,7 +849,7 @@ $('r-prog').onclick=e=>{const b=e.target.closest('.chip');if(b)loadCourse(+b.dat
 
 async function fetchPartants(date,R,C){
   const d=await api(`${pmuDate(date)}/R${R}/C${C}/participants`);
-  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',def:p.deferre||'',oeil:p.oeilleres||'',
+  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',def:p.deferre||'',oeil:p.oeilleres||'',cas:p.urlCasaque||'',
     np:p.statut&&p.statut!=='PARTANT',cote:(p.dernierRapportDirect&&p.dernierRapportDirect.rapport)||(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null,
     ref:(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null}));
 }
@@ -909,7 +910,7 @@ function renderRace(){
     h+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}">
       <td><button class="star ${isFav(p.nom)?'on':''}" data-star="${esc(p.nom)}" title="Favori">${isFav(p.nom)?'★':'☆'}</button></td>
       <td><input type="checkbox" class="sel" value="${p.num}" ${p.np?'disabled':''}></td>
-      <td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${isFav(p.nom)&&state.favs[fkey(p.nom)].note?`<div class="sub">📝 ${esc(state.favs[fkey(p.nom)].note)}</div>`:''}</td>
+      <td class="num"><b>${p.num}</b></td><td>${casq(p)}<b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${isFav(p.nom)&&state.favs[fkey(p.nom)].note?`<div class="sub">📝 ${esc(state.favs[fkey(p.nom)].note)}</div>`:''}</td>
       <td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
       <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td>
       <td class="num"><input class="cotein" type="number" step="0.1" min="1" data-cote="${p.num}" value="${p.cote||''}" ${p.np?'disabled':''}></td>
@@ -1009,6 +1010,7 @@ $('fav-add').onclick=()=>{const L=$('fav-new').value.split(/[\n,;]+/).map(x=>x.t
   $('fav-new').value='';$('fav-addmsg').textContent=L.length?`${n} ajouté(s)${L.length-n?`, ${L.length-n} déjà dans la liste`:''}.`:'';};
 fillSaved();renderFavs();
 // --- favoris : suivi des changements & scan du programme
+const casq=p=>p&&p.cas&&/^https:\/\//.test(p.cas)?`<img class="casq" src="${esc(p.cas)}" alt="" loading="lazy" onerror="this.remove()">`:'';
 const fmtEq=v=>v?String(v).toLowerCase().replace(/_/g,' ').replace(/^deferre /,'déferré ').replace(/anterieurs/,'antérieurs').replace(/posterieurs/,'postérieurs').replace(/oeilleres/,'œillères'):'';
 function favSnap(race,p){return {key:race.key,date:race.date,hippo:race.hippo,course:`${race.R?'R'+race.R+'C'+race.C+' ':''}${race.libelle}`,heure:race.heure||null,
   num:p.num,jockey:p.jockey,entr:p.entr,mus:p.mus,cote:p.cote,def:p.def||'',oeil:p.oeil||'',np:!!p.np,disc:race.disc,dist:race.distance||null};}
@@ -1500,7 +1502,7 @@ function renderBoard(){
       if(p.num===pick)sig.push('<span class="pill s-gagne">🎯 Prono</span>');if(p.num===val)sig.push('<span class="pill s-rembourse">💎 Outsider</span>');
       if(v!=null&&v<=-0.2)sig.push('<span class="pill s-gagne">🔥 Baisse</span>');if(v!=null&&v>=0.3)sig.push('<span class="pill s-perdu">🧊 Hausse</span>');
       if(isFav(p.nom))sig.push('<span class="pill s-encours">⭐ Favori</span>');
-      t+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}"><td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}</td><td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
+      t+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}"><td class="num"><b>${p.num}</b></td><td>${casq(p)}<b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}</td><td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
         <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${refOf(r,p)||'—'}</td><td class="num"><b>${p.cote&&!p.np?p.cote:'—'}</b></td>
         <td class="num">${v==null||Math.abs(v)<0.02?'—':`<span class="${v>0?'trend-up':'trend-down'}">${v>0?'▲':'▼'} ${Math.round(Math.abs(v)*100)} %</span>`}</td>
         <td class="num">${pr==null?'—':(pr*100).toFixed(1)+' %<div class="bar" style="width:'+Math.round(pr/maxP*60)+'px;margin-left:auto"></div>'}</td>
