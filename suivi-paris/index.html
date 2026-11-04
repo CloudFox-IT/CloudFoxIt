@@ -112,7 +112,8 @@ select,input{max-width:100%}
 <body>
 <div class="wrap">
   <header>
-    <h1>🏆 Suivi Paris — Sport &amp; Turf</h1>
+    <div><h1>🏆 Suivi Paris — Sport &amp; Turf</h1>
+      <label class="sub" style="flex-direction:row;align-items:center;gap:6px;margin-top:4px"><input type="checkbox" id="ar-toggle"> 🏁 Résultats et rapports automatiques (toutes les 2 min) <span id="ar-state"></span></label></div>
     <div class="tabs" id="tabs">
       <button class="tab active" data-cat="all">Tous</button>
       <button class="tab" data-cat="sport">⚽ Paris sportifs</button>
@@ -126,6 +127,7 @@ select,input{max-width:100%}
       <button class="tab" data-view="calc">🧮 Calculs</button>
     </div>
   </header>
+  <div id="ar-banner" class="hidden"></div>
 
   <div id="betsView">
   <div class="kpis" id="kpis"></div>
@@ -852,6 +854,7 @@ function renderRace(){
   $('r-title').textContent=`${r.R?'R'+r.R+'C'+r.C+' · ':''}${r.hippo?r.hippo+' · ':''}${r.libelle}`;
   $('r-sub').textContent=[new Date(r.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}),r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'',r.disc,r.distance?r.distance+' m':'',r.partants.length+' partants',r.snaps.length+' relevé(s) de cotes'].filter(Boolean).join(' · ');
   $('r-refresh').classList.toggle('hidden',!r.auto);
+  $('r-sub').innerHTML=esc($('r-sub').textContent)+(r.arrivee&&r.arrivee.length?`<div style="margin-top:6px;color:var(--text)">🏁 Arrivée : <b>${r.arrivee.slice(0,5).join(' - ')}</b></div>`:'')+(r.rapports?`<div style="margin-top:4px;color:var(--text)">${rapHtml(r)}</div>`:'');
   const maxP=Math.max(...P.map(p=>1/p.cote/inv),0.01);
   let h='<thead><tr><th></th><th>✔</th><th class="num">N°</th><th>Cheval</th><th>Jockey / Driver</th><th>Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Cote</th><th class="num">Évol.</th><th class="num">Proba</th><th class="num">Rang</th></tr></thead><tbody>';
   for(const p of [...r.partants].sort((a,b)=>a.num-b.num)){
@@ -1458,7 +1461,7 @@ function renderBoard(){
         <td class="num">${rank[p.num]?(rank[p.num]<=3?['🥇','🥈','🥉'][rank[p.num]-1]:rank[p.num]):'—'}</td><td>${sig.join(' ')}</td></tr>`;});
     return `<details class="card" ${open?'open':''} style="padding:0"><summary style="cursor:pointer;padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
       <b style="font-size:16px">${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</b>
-      <b>R${r.R}C${r.C}</b><span>${esc(r.hippo)} · ${esc(r.libelle)}</span><span class="sub">${esc(r.disc)}${r.distance?' · '+r.distance+' m':''} · ${P.length} partants${started?' · ⏱️ partie':''}</span>${hasFav?'<span class="pill s-encours">⭐</span>':''}
+      <b>R${r.R}C${r.C}</b><span>${esc(r.hippo)} · ${esc(r.libelle)}</span><span class="sub">${esc(r.disc)}${r.distance?' · '+r.distance+' m':''} · ${P.length} partants${started?(r.arrivee&&r.arrivee.length?' · 🏁 '+r.arrivee.slice(0,5).join('-'):' · ⏱️ partie'):''}</span>${hasFav?'<span class="pill s-encours">⭐</span>':''}
       ${A?`<span class="sub" style="margin-left:auto">🎯 Prono : <b>${A.H.slice(0,A.n>=8?4:3).map(x=>x.p.num).join(' - ')}</b></span>`:''}</summary>
       <div class="tablewrap" style="padding:0 16px 14px">${t}</tbody></table>
       <div class="actions"><button class="btn small" data-tbopen="${esc(r.key)}">🔎 Analyse détaillée + courbe</button></div></div></details>`;}).join('');
@@ -1492,7 +1495,7 @@ function raceRow(r,i){
     <td>${favs.length?favs.map(p=>`⭐ <b>${p.num}</b> ${esc(p.nom)}`).join('<br>'):'<span class="sub">—</span>'}</td>
     <td class="num">${ap?'<b>'+ap.join(' - ')+'</b>':'—'}${arr?'<div>'+hitHtml(hit(ap,arr))+'</div>':''}</td>
     <td class="num">${mp.length?'<b>'+mp.join(' - ')+'</b>':'<span class="sub">—</span>'}${arr&&mp.length?'<div>'+hitHtml(hit(mp,arr))+'</div>':''}</td>
-    <td class="num">${arr?'<b>'+arr.slice(0,5).join(' - ')+'</b>':'<span class="sub">—</span>'}</td>
+    <td class="num">${arr?'<b>'+arr.slice(0,5).join(' - ')+'</b>':'<span class="sub">—</span>'}${r.rapports?`<div class="sub">${rapHtml(r,true)}</div>`:''}</td>
     <td style="white-space:nowrap"><button class="btn small" data-mpedit="${esc(r.key)}" title="Mon analyse">✍️</button> <button class="btn small" data-tbopen="${esc(r.key)}" title="Analyse détaillée">🔎</button></td></tr>
     <tr class="hidden" data-mped="${esc(r.key)}"><td colspan="9">
       <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
@@ -1618,6 +1621,82 @@ $('st-load').onclick=loadHistory;
 $('st-reset').onclick=()=>{if(!confirm('Effacer toutes les stats ?'))return;ST={dict:{h:[],j:[],e:[],d:[]},days:{},keys:{},rows:[]};Object.keys(DIX).forEach(k=>DIX[k]={});stSave();fillStatsFilters();renderStats();};
 ['st-group','st-hip','st-disc','st-cmax','st-min','st-sort','st-q'].forEach(i=>$(i).addEventListener('input',renderStats));
 ingestAll();fillStatsFilters();renderStats();
+
+// =================== RÉSULTATS & RAPPORTS AUTOMATIQUES ===================
+const RAPLAB={E_SIMPLE_GAGNANT:'SG',SIMPLE_GAGNANT:'SG',E_SIMPLE_PLACE:'SP',SIMPLE_PLACE:'SP',E_COUPLE_GAGNANT:'Couplé G',COUPLE_GAGNANT:'Couplé G',E_COUPLE_PLACE:'Couplé P',COUPLE_PLACE:'Couplé P',
+  E_COUPLE_ORDRE:'Couplé O',COUPLE_ORDRE:'Couplé O',E_TRIO:'Trio',TRIO:'Trio',E_TRIO_ORDRE:'Trio O',E_DEUX_SUR_QUATRE:'2/4',DEUX_SUR_QUATRE:'2/4',E_TIERCE:'Tiercé',TIERCE:'Tiercé',E_QUARTE_PLUS:'Quarté+',QUARTE_PLUS:'Quarté+',E_QUINTE_PLUS:'Quinté+',QUINTE_PLUS:'Quinté+',E_MULTI:'Multi',MULTI:'Multi',E_SUPER_QUATRE:'Super 4',E_PICK5:'Pick 5'};
+function parseRapports(d){
+  const out={};(Array.isArray(d)?d:(d&&d.rapports)||[]).forEach(t=>{const lab=RAPLAB[t.typePari]||t.typePari;if(!lab)return;
+    (t.rapports||[]).forEach(x=>{let v=x.dividendePourUnEuro!=null?x.dividendePourUnEuro/100:x.dividende!=null?x.dividende/100/(t.miseBase?t.miseBase/100:1):null;if(!(v>0))return;
+      (out[lab]=out[lab]||[]).push({c:String(x.combinaison||'').replace(/\s/g,''),lib:x.libelle||'',v:Math.round(v*100)/100});});});
+  return out;
+}
+function rapHtml(r,short){
+  const R=r.rapports;if(!R)return '';const sg=R.SG&&R.SG[0],sp=R.SP||[];
+  if(short)return [sg?`SG ${eur(sg.v)}`:'',sp.length?`SP ${sp.map(x=>x.c+' : '+eur(x.v)).join(' · ')}`:''].filter(Boolean).join('<br>');
+  return Object.entries(R).map(([k,v])=>`<div><b>${esc(k)}</b> : ${v.slice(0,6).map(x=>`${esc(x.c)}${x.lib&&!/^\d/.test(x.lib)?' '+esc(x.lib):''} → <b>${eur(x.v)}</b>`).join(' · ')}</div>`).join('');
+}
+const raceCode=s=>{const m=String(s||'').match(/R\s*(\d+)\s*C\s*(\d+)/i);return m?{R:+m[1],C:+m[2]}:null;};
+function settleBets(r){
+  const out=[];if(!r.arrivee||!r.arrivee.length)return out;
+  const nPart=(r.partants||[]).filter(p=>!p.np).length||r.arrivee.length,placeN=nPart>=8?3:2,top=r.arrivee;
+  state.bets.filter(b=>b.cat==='turf'&&b.status==='encours'&&b.date===r.date).forEach(b=>{
+    const rc=raceCode(b.race);if(!rc||rc.R!==r.R||rc.C!==r.C)return;
+    const H=numsOf(b.horses),np=H.filter(n=>(r.partants||[]).some(p=>p.num===n&&p.np));if(!H.length)return;
+    const t=b.ttype,R=r.rapports||{};let st=null,ret=null,txt='';
+    if(t==='Simple gagnant'||t==='Simple placé'){
+      if(np.length){st='rembourse';txt='non-partant → remboursé';}
+      else if(t==='Simple gagnant'){const win=top[0]===H[0];st=win?'gagne':'perdu';if(win){const x=R.SG&&R.SG[0];ret=x?Math.round(+b.stake*x.v*100)/100:null;}}
+      else{const pl=top.slice(0,placeN).includes(H[0]);st=pl?'gagne':'perdu';if(pl){const x=(R.SP||[]).find(z=>numsOf(z.c)[0]===H[0]);ret=x?Math.round(+b.stake*x.v*100)/100:null;}}
+      if(st==='gagne'&&ret==null)return out.push({b,r,txt:'🎉 gagné ! rapport pas encore publié, le gain sera calculé à la prochaine mise à jour'});
+      b.status=st;if(ret!=null)b.ret=ret;b.auto=true;
+      out.push({b,r,txt:st==='gagne'?`✅ gagné : +${eur(ret-b.stake)}`:st==='rembourse'?'↩️ '+txt:'❌ perdu'});
+    }else{
+      const need={'Couplé gagnant':[2,2],'Couplé placé':[2,3],'Couplé ordre':[2,2],'Trio':[3,3],'Trio ordre':[3,3],'2 sur 4':[2,4],'Tiercé':[3,3],'Quarté+':[4,4],'Quinté+':[5,5]}[t];
+      if(!need||b.flagKey===r.key+top.join())return;const [k,n]=need,ok=top.slice(0,n).filter(x=>H.includes(x)).length>=k;b.flagKey=r.key+top.join();
+      const lab={'Couplé gagnant':'Couplé G','Couplé placé':'Couplé P','Couplé ordre':'Couplé O','Trio':'Trio','Trio ordre':'Trio O','2 sur 4':'2/4','Tiercé':'Tiercé','Quarté+':'Quarté+','Quinté+':'Quinté+'}[t],rp=(R[lab]||[]).map(x=>`${x.c}${x.lib&&!/^\d/.test(x.lib)?' '+x.lib:''} : ${eur(x.v)}`).join(' · ');
+      out.push({b,r,txt:ok?`🎉 Probablement gagnant (${t}) ! ${rp?'Rapports pour 1 € : '+rp+'. ':''}Vérifie le gain puis valide ton pari.`:`❌ Probablement perdu (${t}) : tes chevaux ne sont pas dans l'arrivée. Valide ton pari.`});
+    }});
+  return out;
+}
+let arTimer=null,arBusy=false;state.autoRes=state.autoRes!==false;
+function arBanner(items){if(!items.length)return;const box=$('ar-banner');
+  box.innerHTML=items.map(i=>`<div class="alert ${/gagn/.test(i.txt)?'arb':/perdu/.test(i.txt)?'mene':''}"><div>🏁 <b>R${i.r.R}C${i.r.C} ${esc(i.r.hippo)}</b> · arrivée <b>${i.r.arrivee.slice(0,5).join(' - ')}</b>${i.b?` · ton pari ${esc(i.b.ttype||'')} ${esc(i.b.horses||'')} : ${i.txt}`:''}${i.rap?`<div class="sub">${i.rap}</div>`:''}</div><button class="btn small" onclick="this.parentNode.remove()">OK</button></div>`).join('')+box.innerHTML;
+  box.classList.remove('hidden');if(L&&L.sound)beep();}
+async function arTick(){
+  if(arBusy)return;arBusy=true;
+  try{
+    const today=new Date().toISOString().slice(0,10),dates=[...new Set([today,...state.bets.filter(b=>b.cat==='turf'&&b.status==='encours').map(b=>b.date)])].filter(d=>d<=today&&d>=new Date(Date.now()-3*864e5).toISOString().slice(0,10));
+    const items=[];let changed=false;
+    for(const date of dates){
+      const mine=Object.values(state.races).filter(r=>r.date===date&&r.R&&(!r.arrivee||!r.rapports));
+      if(!mine.length&&!state.bets.some(b=>b.cat==='turf'&&b.status==='encours'&&b.date===date))continue;
+      const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];
+      for(const re of Rs)for(const c of (re.courses||[])){
+        const key=`${date}-R${re.numOfficiel}C${c.numOrdre}`;let r=state.races[key];
+        const wantBet=state.bets.some(b=>b.cat==='turf'&&b.status==='encours'&&b.date===date&&(x=>x&&x.R===re.numOfficiel&&x.C===c.numOrdre)(raceCode(b.race)));
+        if(!r&&!wantBet)continue;
+        if(!r){r=state.races[key]={key,date,R:re.numOfficiel,C:c.numOrdre,hippo:(re.hippodrome&&re.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,auto:true,snaps:[],partants:[]};}
+        const had=!!(r.arrivee&&r.arrivee.length);raceMeta(r,re,c);
+        if(!r.arrivee||!r.arrivee.length||r.rapports)continue;
+        try{const rp=parseRapports(await api(`${pmuDate(date)}/R${re.numOfficiel}/C${c.numOrdre}/rapports-definitifs`));if(Object.keys(rp).length)r.rapports=rp;}catch(e){}
+        if(!r.partants.length){try{r.partants=await fetchPartants(date,re.numOfficiel,c.numOrdre);}catch(e){}}
+        changed=true;ingestRace(r);
+        const s=settleBets(r);
+        if(s.length)s.forEach(x=>items.push({...x,rap:rapHtml(r,true)}));
+        else if(!had&&(r.partants||[]).some(p=>isFav(p.nom)))items.push({r,b:null,txt:'',rap:'⭐ Un de tes favoris courait. '+rapHtml(r,true)});
+      }
+    }
+    if(changed){save();stSave();render();arBanner(items);
+      const v=['mypage','board','stats'].find(n=>!$(n+'View').classList.contains('hidden'));if(v==='mypage')renderMyPage();if(v==='board')renderBoard();if(v==='stats')renderStats();
+      $('ar-state').textContent='Résultats vérifiés à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+    else $('ar-state').textContent='Résultats vérifiés à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){$('ar-state').textContent='⚠️ Résultats : PMU injoignable';}
+  arBusy=false;
+}
+function arSet(){clearInterval(arTimer);arTimer=null;if(state.autoRes){arTick();arTimer=setInterval(arTick,120000);}else $('ar-state').textContent='';}
+$('ar-toggle').checked=state.autoRes;$('ar-toggle').onchange=()=>{state.autoRes=$('ar-toggle').checked;save();arSet();};
+arSet();
 
 resetForm();render();
 })();
