@@ -118,6 +118,7 @@ select,input{max-width:100%}
       <button class="tab" data-cat="turf">🐎 Turf (chevaux)</button>
       <button class="tab" data-view="live">📡 Live sport</button>
       <button class="tab" data-view="race">🔎 Analyse course</button>
+      <button class="tab" data-view="poker">🃏 Poker</button>
     </div>
   </header>
 
@@ -227,6 +228,44 @@ select,input{max-width:100%}
     <p class="sub">Les données sont enregistrées dans ce navigateur. Fais une sauvegarde JSON de temps en temps pour ne rien perdre.</p>
   </div>
   </div>
+<div id="pokerView" class="hidden">
+  <div class="kpis" id="pk-kpis"></div>
+  <div class="card">
+    <h2 id="pk-formTitle">➕ Nouvelle session de poker</h2>
+    <form id="pk-form" autocomplete="off">
+      <input type="hidden" id="pk-id">
+      <div class="grid">
+        <label>Date <input type="date" id="pk-date" required></label>
+        <label>Format
+          <select id="pk-type"><option>Cash game</option><option>Tournoi (MTT)</option><option>Sit & Go</option><option>Spin / Expresso</option></select></label>
+        <label>Site / Lieu <input id="pk-site" list="pksites" placeholder="Winamax, PokerStars…"></label>
+        <label>Jeu <select id="pk-game"><option>NL Hold'em</option><option>PLO (Omaha)</option><option>Autre</option></select></label>
+        <label>Limite / Buy-in <input id="pk-limit" placeholder="NL10, MTT 5 €…"></label>
+        <label>Investi (€) <input type="number" id="pk-in" step="0.01" min="0" required placeholder="buy-in + recaves"></label>
+        <label>Récupéré (€) <input type="number" id="pk-out" step="0.01" min="0" required placeholder="cash-out / gains"></label>
+        <label>Durée (h) <input type="number" id="pk-dur" step="0.25" min="0" placeholder="1.5"></label>
+        <label class="pk-tourn">Place <input type="number" id="pk-place" min="1" placeholder="12"></label>
+        <label class="pk-tourn">Joueurs <input type="number" id="pk-field" min="1" placeholder="350"></label>
+      </div>
+      <label style="margin-top:10px">Notes <textarea id="pk-notes" rows="2" placeholder="Mains clés, tilt, niveau des tables…"></textarea></label>
+      <div class="actions"><button class="btn primary" type="submit" id="pk-save">Enregistrer</button><button class="btn hidden" type="button" id="pk-cancel">Annuler la modification</button></div>
+    </form>
+  </div>
+  <div class="two">
+    <div class="card"><h2>📈 Évolution de la bankroll poker</h2><canvas id="pk-chart"></canvas></div>
+    <div class="card"><h2>📊 Par format</h2><div class="tablewrap"><table id="pk-break"></table></div></div>
+  </div>
+  <div class="card">
+    <h2>📋 Sessions</h2>
+    <div class="filters">
+      <select id="pk-fType"><option value="">Tous formats</option><option>Cash game</option><option>Tournoi (MTT)</option><option>Sit & Go</option><option>Spin / Expresso</option></select>
+      <span style="flex:1"></span>
+      <label style="flex-direction:row;align-items:center;gap:6px">Bankroll poker de départ (€) <input type="number" id="pk-start" step="0.01" style="width:90px"></label>
+    </div>
+    <div class="tablewrap"><table id="pk-table"></table></div>
+  </div>
+</div>
+<datalist id="pksites"><option>Winamax</option><option>PokerStars</option><option>PMU Poker</option><option>Unibet Poker</option><option>Betclic Poker</option><option>Casino (live)</option><option>Partie entre amis</option></datalist>
 <div id="liveView" class="hidden">
   <div class="card">
     <h2>📡 Cotes live — configuration</h2>
@@ -268,6 +307,16 @@ select,input{max-width:100%}
   </div>
 </div>
 <div id="raceView" class="hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">🎯 Pronos du jour</h2>
+      <div class="actions" style="margin:0"><label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="pr-date"></label><button class="btn primary" id="pr-go">Générer les pronos</button></div>
+    </div>
+    <div id="pr-msg"></div>
+    <div id="pr-out"></div>
+    <p class="sub">Calcul automatique à partir de la forme (musique) et des cotes du marché. C'est une aide à la décision, pas une garantie : aucun calcul ne gagne à coup sûr. Joue seulement ce que tu peux te permettre de perdre.</p>
+  </div>
+
   <div class="card">
     <h2>🔎 Charger une course</h2>
     <div class="filters">
@@ -506,8 +555,8 @@ $('table').onclick=e=>{
 
 $('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
-  const v=t.dataset.view||'bets';['bets','race','live'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
-  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;}
+  const v=t.dataset.view||'bets';['bets','race','live','poker'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
+  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;}
   cat=t.dataset.cat;
   if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
@@ -533,13 +582,13 @@ $('importFile').onchange=async e=>{
     if(confirm(`${nw.length} nouveau(x) pari(s) à ajouter (${d.bets.length-nw.length} déjà présent(s)).${d.favs?' Favoris et courses seront aussi fusionnés.':''} Continuer ?`)){
       const wasEmpty=!state.bets.length;
       nw.forEach(b=>{b.created=b.created||Date.now();state.bets.push(b);});
-      Object.assign(state.races,d.races||{});Object.entries(d.favs||{}).forEach(([k,v])=>{if(!state.favs[k])state.favs[k]=v;});
+      Object.assign(state.races,d.races||{});if(d.poker&&Array.isArray(d.poker.sessions)){const pids=new Set(PK().sessions.map(x=>x.id));d.poker.sessions.filter(x=>x&&x.id&&!pids.has(x.id)).forEach(x=>PK().sessions.push(x));if(wasEmpty&&d.poker.start!=null){PK().start=d.poker.start;$('pk-start').value=PK().start;}}Object.entries(d.favs||{}).forEach(([k,v])=>{if(!state.favs[k])state.favs[k]=v;});
       if(wasEmpty&&d.bankroll!=null){state.bankroll=d.bankroll;state.report=d.report||0;$('bankroll').value=state.bankroll;$('report').value=state.report;}
       fillSaved();renderFavs();save();render();}
   }catch(_){alert('Fichier invalide.');}
   e.target.value='';
 };
-window.addEventListener('resize',()=>drawChart(filtered()));
+window.addEventListener('resize',()=>{drawChart(filtered());if(!$('pokerView').classList.contains('hidden'))renderPoker();});
 
 // =================== ANALYSE COURSE ===================
 state.races=state.races||{}; state.favs=state.favs||{};
@@ -978,6 +1027,128 @@ $('l-demo').onclick=()=>{
   tick();lTimer=setInterval(tick,3000);$('l-demo').textContent='⏹️ Arrêter la démo';lmsg('🎮 Mode démo : matchs fictifs pour voir comment fonctionnent les alertes.',true);
 };
 renderSportList();lRender();
+
+// =================== POKER ===================
+state.poker=state.poker||{start:78,sessions:[]};
+const PK=()=>state.poker;
+const isTourn=t=>t!=='Cash game';
+function pkStats(L){
+  const inv=L.reduce((a,s)=>a+(+s.in||0),0),out=L.reduce((a,s)=>a+(+s.out||0),0),T=L.filter(s=>isTourn(s.type)),C=L.filter(s=>!isTourn(s.type));
+  const ch=C.reduce((a,s)=>a+(+s.dur||0),0),cp=C.reduce((a,s)=>a+(+s.out||0)-(+s.in||0),0);
+  return {n:L.length,inv,out,profit:out-inv,roi:inv?(out-inv)/inv:NaN,itm:T.length?T.filter(s=>+s.out>0).length/T.length:NaN,
+    hourly:ch?cp/ch:NaN,hours:L.reduce((a,s)=>a+(+s.dur||0),0),best:L.reduce((m,s)=>Math.max(m,(+s.out||0)-(+s.in||0)),-Infinity)};
+}
+function pokerBank(){return (+PK().start||0)+pkStats(PK().sessions).profit;}
+function renderPoker(){
+  const all=PK().sessions,ft=$('pk-fType').value,L=all.filter(s=>!ft||s.type===ft),s=pkStats(L),bank=pokerBank();
+  const sg=v=>`<span class="${v>=0?'pos':'neg'}">${v>=0?'+':''}${eur(v)}</span>`;
+  $('pk-kpis').innerHTML=[['Bankroll poker',`<span class="${bank>=(+PK().start||0)?'pos':'neg'}">${eur(bank)}</span>`],['Sessions',s.n],['Investi',eur(s.inv)],['Résultat',sg(s.profit)],
+    ['ROI',`<span class="${s.roi>=0?'pos':'neg'}">${pct(s.roi)}</span>`],['ITM tournois',pct(s.itm)],['Cash : €/heure',isFinite(s.hourly)?sg(s.hourly):'—'],['Heures jouées',s.hours?s.hours.toLocaleString('fr-FR')+' h':'—'],
+    ['Paris + poker',eur(bank+(+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit)]].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  const rows=[...L].sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created);
+  let h='<thead><tr><th>Date</th><th>Format</th><th>Site</th><th>Jeu / Limite</th><th class="num">Investi</th><th class="num">Récupéré</th><th class="num">Résultat</th><th class="num">Durée</th><th>Place</th><th></th></tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="10" class="empty">Aucune session. Ajoute ta première session ci-dessus 👆</td></tr>';
+  for(const x of rows){const p=(+x.out||0)-(+x.in||0);
+    h+=`<tr><td>${new Date(x.date+'T12:00').toLocaleDateString('fr-FR')}</td><td><span class="cat ${isTourn(x.type)?'turf':'sport'}">${isTourn(x.type)?'🏆':'💵'} ${esc(x.type)}</span></td><td>${esc(x.site)}</td>
+    <td class="desc">${esc(x.game)}${x.limit?' · '+esc(x.limit):''}${x.notes?`<div class="sub">📝 ${esc(x.notes)}</div>`:''}</td><td class="num">${eur(+x.in)}</td><td class="num">${eur(+x.out)}</td><td class="num ${p>0?'pos':p<0?'neg':''}">${p>=0?'+':''}${eur(p)}</td>
+    <td class="num">${x.dur?x.dur+' h':'—'}</td><td>${x.place?x.place+(x.field?' / '+x.field:''):'—'}</td><td><button class="btn small" data-pkedit="${x.id}">✏️</button> <button class="btn small danger" data-pkdel="${x.id}">🗑️</button></td></tr>`;}
+  $('pk-table').innerHTML=h+'</tbody>';
+  const g={};L.forEach(x=>(g[x.type]=g[x.type]||[]).push(x));
+  let b='<thead><tr><th>Format</th><th class="num">Sessions</th><th class="num">Investi</th><th class="num">Résultat</th><th class="num">ROI</th></tr></thead><tbody>';
+  const E=Object.entries(g);if(!E.length)b+='<tr><td colspan="5" class="empty">Pas encore de données</td></tr>';
+  E.forEach(([k,v])=>{const z=pkStats(v);b+=`<tr><td>${esc(k)}</td><td class="num">${z.n}</td><td class="num">${eur(z.inv)}</td><td class="num">${sg(z.profit)}</td><td class="num">${pct(z.roi)}</td></tr>`;});
+  $('pk-break').innerHTML=b+'</tbody>';
+  const srt=[...all].sort((a,b)=>a.date.localeCompare(b.date)||a.created-b.created);let c=+PK().start||0;
+  lineChart($('pk-chart'),[c,...srt.map(x=>c+=(+x.out||0)-(+x.in||0))],+PK().start||0,`${srt.length} sessions`);
+}
+function lineChart(cv,pts,base,label){
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;if(!w)return;cv.width=w*dpr;cv.height=h*dpr;const x=cv.getContext('2d');x.scale(dpr,dpr);
+  const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();x.font='12px system-ui';x.fillStyle=col('--muted');
+  if(pts.length<2){x.textAlign='center';x.fillText('Le graphique apparaîtra après ta première session',w/2,h/2);return;}
+  const mn=Math.min(base,...pts),mx=Math.max(base,...pts),r=(mx-mn)||1,L=56,R=10,T=10,B=20,X=i=>L+(w-L-R)*i/(pts.length-1),Y=v=>T+(h-T-B)*(1-(v-mn)/r);
+  x.strokeStyle=col('--border');x.textAlign='right';x.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=mn+r*i/4;x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();x.fillText(Math.round(v)+' €',L-6,Y(v));}
+  x.strokeStyle=col('--muted');x.setLineDash([4,4]);x.beginPath();x.moveTo(L,Y(base));x.lineTo(w-R,Y(base));x.stroke();x.setLineDash([]);
+  x.strokeStyle=pts[pts.length-1]>=base?col('--win'):col('--loss');x.lineWidth=2.5;x.beginPath();pts.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.stroke();
+  x.textAlign='left';x.textBaseline='alphabetic';x.fillStyle=col('--muted');x.fillText(label,L,h-4);
+}
+const PKF=['date','type','site','game','limit','in','out','dur','place','field','notes'];
+function pkReset(){$('pk-form').reset();$('pk-id').value='';$('pk-date').value=new Date().toISOString().slice(0,10);$('pk-formTitle').textContent='➕ Nouvelle session de poker';$('pk-save').textContent='Enregistrer';$('pk-cancel').classList.add('hidden');pkToggle();}
+function pkToggle(){document.querySelectorAll('.pk-tourn').forEach(e=>e.classList.toggle('hidden',!isTourn($('pk-type').value)));}
+$('pk-type').onchange=pkToggle;$('pk-cancel').onclick=pkReset;$('pk-fType').onchange=renderPoker;
+$('pk-start').value=PK().start;$('pk-start').oninput=()=>{PK().start=+$('pk-start').value||0;save();renderPoker();};
+$('pk-form').onsubmit=e=>{e.preventDefault();const id=$('pk-id').value,s={};PKF.forEach(k=>s[k]=$('pk-'+k).value.trim());
+  if(id){const i=PK().sessions.findIndex(x=>x.id===id);PK().sessions[i]={...PK().sessions[i],...s};}else PK().sessions.push({...s,id:'pk'+Date.now().toString(36),created:Date.now()});
+  save();pkReset();renderPoker();};
+$('pk-table').onclick=e=>{const t=e.target.closest('button');if(!t)return;const x=PK().sessions.find(s=>s.id===(t.dataset.pkedit||t.dataset.pkdel));if(!x)return;
+  if(t.dataset.pkdel){if(confirm('Supprimer cette session ?')){PK().sessions=PK().sessions.filter(s=>s!==x);save();renderPoker();}}
+  else{PKF.forEach(k=>$('pk-'+k).value=x[k]??'');$('pk-id').value=x.id;pkToggle();$('pk-formTitle').textContent='✏️ Modifier la session';$('pk-save').textContent='Mettre à jour';$('pk-cancel').classList.remove('hidden');$('pk-form').scrollIntoView({behavior:'smooth'});}};
+pkReset();
+
+// --- pronos du jour (turf)
+function analyseRace(r){
+  const P=r.partants.filter(p=>!p.np&&+p.cote>0);if(P.length<5)return null;
+  const inv=P.reduce((a,p)=>a+1/p.cote,0),maxp=Math.max(...P.map(p=>1/p.cote/inv));
+  const first=r.snaps[0]&&r.snaps[0].c||{};
+  const H=P.map(p=>{const pr=1/p.cote/inv,f=formScore(p.mus),runs=parseMus(p.mus).slice(0,5);
+    return {p,pr,f,runs,score:0.55*(pr/maxp)+0.45*((f==null?4:f)/10),open:first[p.num]};}).sort((a,b)=>b.score-a.score);
+  const byCote=[...H].sort((a,b)=>a.p.cote-b.p.cote);H.forEach(h=>h.coteRank=byCote.indexOf(h)+1);
+  const top=H[0],gap=top.score-H[1].score;
+  const conf=Math.max(0,Math.min(100,Math.round(40+gap*180+(top.coteRank===1?12:0)+((top.f||0)>=7?10:0)-(P.length>14?8:0))));
+  const value=H.filter(h=>h.f!=null&&h.f>=6.5&&h.p.cote>=7&&h!==top).sort((a,b)=>b.f-a.f)[0]||null;
+  return {r,H,top,conf,value,n:P.length};
+}
+function reasons(h){
+  const R=[],wins=h.runs.filter(x=>x.p==='1').length,plc=h.runs.filter(x=>/[123]/.test(x.p)).length,bad=h.runs.filter(x=>/[DATR]/.test(x.p)).length;
+  if(h.f!=null)R.push(`Forme ${h.f}/10 sur ses ${h.runs.length} dernières courses (${wins} victoire${wins>1?'s':''}, ${plc} fois dans les 3)`);
+  R.push(h.coteRank===1?`Favori du marché : cote ${h.p.cote}, environ ${Math.round(h.pr*100)} % de chances selon les cotes`:`${h.coteRank}e choix du marché (cote ${h.p.cote}, environ ${Math.round(h.pr*100)} % de chances)`);
+  if(h.open&&h.p.cote<h.open*0.9)R.push(`Cote en baisse ${h.open} → ${h.p.cote} : il est de plus en plus joué`);
+  if(h.open&&h.p.cote>h.open*1.15)R.push(`⚠️ Cote en hausse ${h.open} → ${h.p.cote} : le marché y croit moins`);
+  if(bad)R.push(`⚠️ ${bad} faute${bad>1?'s':''} ou disqualification${bad>1?'s':''} récente${bad>1?'s':''}`);
+  if(isFav(h.p.nom))R.push('⭐ Dans tes chevaux favoris');
+  return R;
+}
+async function genPronos(){
+  const date=$('pr-date').value,box=$('pr-msg');box.innerHTML='<div class="msg ok">Chargement du programme…</div>';$('pr-out').innerHTML='';
+  try{
+    const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];const jobs=[];
+    Rs.forEach(r=>(r.courses||[]).forEach(c=>jobs.push({r,c})));let done=0;const total=jobs.length;
+    const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();try{
+      const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
+      race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);recordFavs(race);state.races[key]=race;}catch(e){}
+      box.innerHTML=`<div class="msg ok">Analyse des courses… ${++done}/${total}</div>`;}};
+    await Promise.all([1,2,3,4,5,6].map(worker));
+    state.pronos={date,t:Date.now()};save();fillSaved();box.innerHTML='';renderPronos();
+  }catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+'). Les pronos ont besoin du chargement automatique.</div>';}
+}
+function renderPronos(){
+  const date=$('pr-date').value,A=Object.values(state.races).filter(r=>r.date===date&&r.auto).map(analyseRace).filter(Boolean);
+  if(!A.length){$('pr-out').innerHTML='';return;}
+  const bank=(+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit;
+  const sel=[...A].sort((a,b)=>b.conf-a.conf).slice(0,5).sort((a,b)=>(a.r.heure||0)-(b.r.heure||0));
+  const coup=A.filter(a=>a.value).sort((a,b)=>b.value.f-a.value.f)[0];
+  const card=(a,h,kind)=>{const type=kind==='value'?'Simple placé':a.conf>=70?'Simple gagnant':'Simple placé',pctB=kind==='value'?0.01:a.conf>=70?0.03:0.02;
+    const combo=a.H.slice(0,a.n>=8?4:3).map(x=>x.p.num).join(' - ');
+    return `<div class="alert ${kind==='value'?'envol':a.conf>=70?'':'nul'}" style="align-items:flex-start">
+      <div style="min-width:0;flex:1">
+        <div><span class="sub">${a.r.heure?new Date(a.r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · ':''}R${a.r.R}C${a.r.C} ${esc(a.r.hippo)} · ${esc(a.r.libelle)} · ${a.n} partants</span></div>
+        <div style="font-size:16px;margin:4px 0">${kind==='value'?'💎 Coup de poker : ':'👉 '}<b>N°${h.p.num} ${esc(h.p.nom)}</b> en <b>${type}</b> <span class="pill ${a.conf>=70?'s-gagne':'s-encours'}">${kind==='value'?'risqué, grosse cote':'indice '+'★'.repeat(Math.max(1,Math.round(a.conf/20)))+'☆'.repeat(5-Math.max(1,Math.round(a.conf/20)))}</span></div>
+        <ul style="margin:4px 0 4px 18px;padding:0">${reasons(h).map(x=>`<li>${x}</li>`).join('')}</ul>
+        <div class="sub">Mise conseillée : ${Math.round(pctB*100)} % de ta bankroll ≈ <b>${eur(Math.max(0.5,Math.round(bank*pctB*2)/2))}</b>${kind==='value'?'':` · Pour un couplé / trio : <b>${combo}</b>`}</div>
+      </div>
+      <div class="actions" style="margin:0"><button class="btn small" data-propen="${esc(a.r.key)}">🔎 Analyser</button><button class="btn small primary" data-prbet="${esc(a.r.key)}" data-num="${h.p.num}" data-type="${type}" data-stake="${Math.max(0.5,Math.round(bank*pctB*2)/2)}">🎟️ Parier</button></div></div>`;};
+  $('pr-out').innerHTML=`<p class="sub">${A.length} courses analysées. Les 5 courses où un cheval ressort le plus nettement (★ = à quel point il domine les autres sur le papier, pas une probabilité de gagner) :</p>`+sel.map(a=>card(a,a.top,'base')).join('')+(coup?card(coup,coup.value,'value'):'');
+}
+$('pr-date').value=new Date().toISOString().slice(0,10);
+$('pr-go').onclick=genPronos;$('pr-date').onchange=renderPronos;
+$('pr-out').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.propen)return openRace(t.dataset.propen);
+  const r=state.races[t.dataset.prbet],p=r&&r.partants.find(q=>q.num==t.dataset.num);if(!p)return;
+  document.querySelector('.tab[data-cat="turf"]').click();$('f-cat').value='turf';toggleCat();
+  $('f-date').value=r.date;$('f-hippo').value=r.hippo;$('f-race').value=`R${r.R}C${r.C} — ${r.libelle}`;if([...$('f-disc').options].some(o=>o.value===r.disc))$('f-disc').value=r.disc;
+  $('f-ttype').value=t.dataset.type;$('f-horses').value=p.num;$('f-odd').value=t.dataset.type==='Simple gagnant'?p.cote:'';$('f-stake').value=t.dataset.stake;
+  $('betForm').scrollIntoView({behavior:'smooth'});});
+renderPronos();
 
 resetForm();render();
 })();
