@@ -211,14 +211,17 @@ select,input{max-width:100%}
       </select>
       <span style="flex:1"></span>
       <label style="flex-direction:row;align-items:center;gap:6px">Bankroll de départ (€)
-        <input type="number" id="bankroll" step="1" min="0" style="width:100px">
+        <input type="number" id="bankroll" step="1" min="0" style="width:90px">
+      </label>
+      <label style="flex-direction:row;align-items:center;gap:6px" title="Gains ou pertes réalisés avant de saisir tes paris ici">Report avant l'appli (€)
+        <input type="number" id="report" step="0.01" style="width:90px">
       </label>
     </div>
     <div class="tablewrap"><table id="table"></table></div>
     <div class="actions">
       <button class="btn" id="csvBtn">⬇️ Export CSV (Excel)</button>
       <button class="btn" id="jsonBtn">💾 Sauvegarde JSON</button>
-      <button class="btn" id="importBtn">📂 Importer une sauvegarde</button>
+      <button class="btn" id="importBtn">📂 Importer / ajouter des paris (JSON)</button>
       <input type="file" id="importFile" accept=".json,application/json" class="hidden">
     </div>
     <p class="sub">Les données sont enregistrées dans ce navigateur. Fais une sauvegarde JSON de temps en temps pour ne rien perdre.</p>
@@ -317,6 +320,13 @@ select,input{max-width:100%}
 
   <div class="card">
     <h2>⭐ Mes favoris</h2>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="scan-date"></label>
+      <button class="btn primary" id="scan-go">🔍 Lesquels de mes favoris courent ?</button>
+    </div>
+    <div id="scan-msg"></div>
+    <div class="tablewrap"><table id="scan-table"></table></div>
+    <h2 style="margin-top:16px">Liste de mes favoris</h2>
     <div class="tablewrap"><table id="favTable"></table></div>
     <div class="actions"><input id="fav-new" placeholder="Nom du cheval"><button class="btn" id="fav-add">Ajouter</button></div>
   </div>
@@ -335,7 +345,7 @@ const eur=n=>(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
 const pct=n=>isFinite(n)?(n*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %':'—';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-let state={bets:[],bankroll:100};
+let state={bets:[],bankroll:50,report:60};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.bets))state=s;}catch(e){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
 
@@ -382,7 +392,7 @@ function filtered(){
 // ---- rendu
 function render(){
   const list=filtered(), s=stats(list);
-  const cur=(+state.bankroll||0)+stats(state.bets).profit;
+  const cur=(+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit;
   const k=[
     ['Paris',s.n+(s.pending?` <span class="sub">(${s.pending} en cours)</span>`:'')],
     ['Total misé',eur(s.stake)],
@@ -503,6 +513,8 @@ $('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
 $('bankroll').value=state.bankroll;
 $('bankroll').oninput=()=>{state.bankroll=+$('bankroll').value||0;save();render();};
+$('report').value=state.report||0;
+$('report').oninput=()=>{state.report=+$('report').value||0;save();render();};
 
 // ---- export / import
 function dl(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
@@ -517,7 +529,13 @@ $('importBtn').onclick=()=>$('importFile').click();
 $('importFile').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const d=JSON.parse(await f.text());if(!Array.isArray(d.bets))throw 0;
-    if(confirm(`Importer ${d.bets.length} paris ? (remplace les données actuelles)`)){state=d;state.live=L;state.races=state.races||{};state.favs=state.favs||{};fillSaved();renderFavs();$('bankroll').value=state.bankroll;save();render();}
+    const ids=new Set(state.bets.map(b=>b.id)),nw=d.bets.filter(b=>b&&b.id&&!ids.has(b.id));
+    if(confirm(`${nw.length} nouveau(x) pari(s) à ajouter (${d.bets.length-nw.length} déjà présent(s)).${d.favs?' Favoris et courses seront aussi fusionnés.':''} Continuer ?`)){
+      const wasEmpty=!state.bets.length;
+      nw.forEach(b=>{b.created=b.created||Date.now();state.bets.push(b);});
+      Object.assign(state.races,d.races||{});Object.entries(d.favs||{}).forEach(([k,v])=>{if(!state.favs[k])state.favs[k]=v;});
+      if(wasEmpty&&d.bankroll!=null){state.bankroll=d.bankroll;state.report=d.report||0;$('bankroll').value=state.bankroll;$('report').value=state.report;}
+      fillSaved();renderFavs();save();render();}
   }catch(_){alert('Fichier invalide.');}
   e.target.value='';
 };
@@ -569,7 +587,7 @@ $('r-prog').onclick=e=>{const b=e.target.closest('.chip');if(b)loadCourse(+b.dat
 
 async function fetchPartants(date,R,C){
   const d=await api(`${pmuDate(date)}/R${R}/C${C}/participants`);
-  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',
+  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',def:p.deferre||'',oeil:p.oeilleres||'',
     np:p.statut&&p.statut!=='PARTANT',cote:(p.dernierRapportDirect&&p.dernierRapportDirect.rapport)||(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null,
     ref:(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null}));
 }
@@ -581,7 +599,7 @@ async function loadCourse(R,C){
     const key=`${date}-R${R}C${C}`, old=state.races[key];
     const race=old||{key,date,R,C,hippo:(reu.hippodrome&&reu.hippodrome.libelleCourt)||'',libelle:co.libelle||'',disc:DISC[co.discipline]||co.discipline||'',
       distance:co.distance,heure:co.heureDepart,auto:true,snaps:[]};
-    race.partants=parts; snapshot(race,parts);
+    race.partants=parts; snapshot(race,parts); recordFavs(race);
     state.races[key]=race; save(); msg(''); openRace(key);
   }catch(e){msg('⚠️ Impossible de charger les partants ('+esc(e.message)+'). Utilise la saisie manuelle.');}
 }
@@ -603,7 +621,7 @@ $('m-go').onclick=()=>{
   if(!parts.length){alert('Ajoute au moins un partant.');return;}
   const date=$('r-date').value, race_=$('m-race').value.trim()||'Course';
   const key=`${date}-M-${race_}`, race=state.races[key]||{key,date,hippo:$('m-hippo').value.trim(),libelle:race_,disc:$('m-disc').value,auto:false,snaps:[]};
-  race.partants=parts; snapshot(race,parts); state.races[key]=race; save(); openRace(key);
+  race.partants=parts; snapshot(race,parts); recordFavs(race); state.races[key]=race; save(); openRace(key);
 };
 
 function openRace(key){cur=state.races[key];$('r-analysis').classList.remove('hidden');fillSaved();$('r-saved').value=key;renderRace();$('r-analysis').scrollIntoView({behavior:'smooth'});}
@@ -726,6 +744,70 @@ $('favTable').addEventListener('click',e=>{const t=e.target.closest('[data-unfav
 $('favTable').addEventListener('change',e=>{const i=e.target.closest('[data-note]');if(!i)return;state.favs[i.dataset.note].note=i.value;save();if(cur)renderRace();});
 $('fav-add').onclick=()=>{const n=$('fav-new').value.trim();if(n&&!isFav(n))toggleFav(n);$('fav-new').value='';};
 fillSaved();renderFavs();
+// --- favoris : suivi des changements & scan du programme
+const fmtEq=v=>v?String(v).toLowerCase().replace(/_/g,' ').replace(/^deferre /,'déferré ').replace(/anterieurs/,'antérieurs').replace(/posterieurs/,'postérieurs').replace(/oeilleres/,'œillères'):'';
+function favSnap(race,p){return {key:race.key,date:race.date,hippo:race.hippo,course:`${race.R?'R'+race.R+'C'+race.C+' ':''}${race.libelle}`,heure:race.heure||null,
+  num:p.num,jockey:p.jockey,entr:p.entr,mus:p.mus,cote:p.cote,def:p.def||'',oeil:p.oeil||'',np:!!p.np,disc:race.disc,dist:race.distance||null};}
+function recordFavs(race){
+  (race.partants||[]).forEach(p=>{const f=state.favs[fkey(p.nom)];if(!f)return;f.hist=f.hist||[];
+    const s=favSnap(race,p),i=f.hist.findIndex(h=>h.key===race.key);if(i>=0)f.hist[i]=s;else f.hist.push(s);
+    f.hist.sort((a,b)=>a.date.localeCompare(b.date));f.hist=f.hist.slice(-20);});
+}
+function newRuns(nm,om){const n=parseMus(nm).map(x=>x.p+x.d),o=parseMus(om).map(x=>x.p+x.d);if(!o.length)return [];
+  for(let i=0;i<=Math.min(n.length,6);i++){const rest=n.slice(i);const m=Math.min(rest.length,o.length,4);if(m&&rest.slice(0,m).join()===o.slice(0,m).join())return n.slice(0,i);}return null;}
+function favChanges(f,key){
+  const h=f.hist||[],cur=h.find(x=>x.key===key);if(!cur)return null;
+  const prev=[...h].filter(x=>x.key!==key&&x.date<=cur.date).pop();if(!prev)return {first:true,list:[]};
+  const L=[];
+  if(cur.np)L.push('🚫 Non-partant');
+  if(prev.jockey&&cur.jockey&&prev.jockey!==cur.jockey)L.push(`🏇 Jockey : ${esc(prev.jockey)} → <b>${esc(cur.jockey)}</b>`);
+  if(prev.entr&&cur.entr&&prev.entr!==cur.entr)L.push(`👤 Entraîneur : ${esc(prev.entr)} → <b>${esc(cur.entr)}</b>`);
+  if(prev.def!==cur.def&&(prev.def||cur.def))L.push(`🧲 Ferrure : ${esc(fmtEq(prev.def)||'ferré')} → <b>${esc(fmtEq(cur.def)||'ferré')}</b>`);
+  if(prev.oeil!==cur.oeil&&(prev.oeil||cur.oeil))L.push(`🕶️ Œillères : ${esc(fmtEq(prev.oeil)||'sans')} → <b>${esc(fmtEq(cur.oeil)||'sans')}</b>`);
+  if(prev.disc&&cur.disc&&prev.disc!==cur.disc)L.push(`🔀 Discipline : ${esc(prev.disc)} → <b>${esc(cur.disc)}</b>`);
+  if(prev.dist&&cur.dist&&Math.abs(prev.dist-cur.dist)>=200)L.push(`📏 Distance : ${prev.dist} m → <b>${cur.dist} m</b>`);
+  if(prev.hippo&&cur.hippo&&prev.hippo!==cur.hippo)L.push(`📍 Hippodrome : ${esc(prev.hippo)} → <b>${esc(cur.hippo)}</b>`);
+  const nr=newRuns(cur.mus,prev.mus);if(nr&&nr.length)L.push(`🆕 Couru depuis : ${musHtml(nr.join(''))}`);
+  return {prev,list:L};
+}
+let scanRes=[];
+async function scanFavs(){
+  const names=Object.keys(state.favs);if(!names.length){$('scan-msg').innerHTML='<div class="msg">Ajoute d\'abord des chevaux favoris (☆ dans une course ou champ ci-dessous).</div>';return;}
+  const date=$('scan-date').value,box=$('scan-msg');box.innerHTML='<div class="msg ok">Chargement du programme…</div>';
+  try{
+    const d=await api(pmuDate(date)),R=(d.programme&&d.programme.reunions)||[];
+    const jobs=[];R.forEach(r=>(r.courses||[]).forEach(c=>jobs.push({r,c})));
+    let done=0;scanRes=[];
+    const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();
+      try{const parts=await fetchPartants(date,r.numOfficiel,c.numOrdre);
+        if(parts.some(p=>state.favs[fkey(p.nom)])){
+          const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
+          race.partants=parts;snapshot(race,parts);state.races[key]=race;recordFavs(race);
+          parts.filter(p=>state.favs[fkey(p.nom)]).forEach(p=>scanRes.push({k:fkey(p.nom),key}));}
+      }catch(e){}
+      box.innerHTML=`<div class="msg ok">Recherche dans les courses… ${++done}</div>`;}};
+    await Promise.all([1,2,3,4,5,6].map(worker));
+    state.favScan={date,res:scanRes,t:Date.now()};save();fillSaved();renderFavs();
+    box.innerHTML=`<div class="msg ok">${scanRes.length?`✅ ${scanRes.length} favori(s) engagé(s) le ${new Date(date+'T12:00').toLocaleDateString('fr-FR')}.`:`Aucun de tes ${names.length} favoris ne court le ${new Date(date+'T12:00').toLocaleDateString('fr-FR')}.`}</div>`;
+  }catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';}
+  renderScan();
+}
+function renderScan(){
+  const S=state.favScan;if(!S||!S.res.length){$('scan-table').innerHTML='';return;}
+  let h='<thead><tr><th>Cheval</th><th>Course</th><th class="num">N°</th><th>Jockey / Entraîneur</th><th>Musique</th><th class="num">Cote</th><th>Changements depuis sa dernière course vue</th><th></th></tr></thead><tbody>';
+  for(const {k,key} of S.res){const f=state.favs[k],r=state.races[key];if(!f||!r)continue;const s=(f.hist||[]).find(x=>x.key===key);if(!s)continue;const ch=favChanges(f,key);
+    h+=`<tr class="${s.np?'np':''}"><td><b>⭐ ${esc(f.nom)}</b>${f.note?`<div class="sub">📝 ${esc(f.note)}</div>`:''}</td>
+    <td class="desc">${s.heure?new Date(s.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · ':''}<b>${esc(s.course)}</b><div class="sub">${esc(s.hippo)} · ${esc(s.disc||'')}${s.dist?' · '+s.dist+' m':''}</div></td>
+    <td class="num"><b>${s.num}</b></td><td>${esc(s.jockey)}<div class="sub">${esc(s.entr)}</div></td><td>${musHtml(s.mus)}</td><td class="num">${s.cote||'—'}</td>
+    <td class="desc">${!ch||ch.first?'<span class="sub">🆕 Première course suivie — pas encore de comparaison</span>':ch.list.length?ch.list.join('<br>'):`<span class="pos">✅ Rien n'a changé</span> <span class="sub">(vs ${new Date(ch.prev.date+'T12:00').toLocaleDateString('fr-FR')} ${esc(ch.prev.hippo||'')})</span>`}</td>
+    <td><button class="btn small" data-open="${esc(key)}">🔎 Analyser</button></td></tr>`;}
+  $('scan-table').innerHTML=h+'</tbody>';
+}
+$('scan-date').value=new Date().toISOString().slice(0,10);
+$('scan-go').onclick=scanFavs;
+$('scan-table').addEventListener('click',e=>{const t=e.target.closest('[data-open]');if(t)openRace(t.dataset.open);});
+renderScan();
+
 window.addEventListener('resize',()=>{if(cur&&!$('raceView').classList.contains('hidden'))drawOdds();});
 
 // =================== LIVE SPORT ===================
