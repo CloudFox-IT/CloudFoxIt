@@ -121,6 +121,7 @@ select,input{max-width:100%}
       <button class="tab" data-view="mypage">⭐ Ma page turf</button>
       <button class="tab" data-view="board">📋 Tableau turf</button>
       <button class="tab" data-view="race">🔎 Analyse course</button>
+      <button class="tab" data-view="stats">📈 Stats & ROI</button>
       <button class="tab" data-view="poker">🃏 Poker</button>
       <button class="tab" data-view="calc">🧮 Calculs</button>
     </div>
@@ -325,6 +326,36 @@ select,input{max-width:100%}
     <div class="kpis" id="mp-score"></div>
     <div class="tablewrap"><table id="mp-an"></table></div>
     <p class="sub">Clique sur ✍️ à côté d'une course pour noter ton analyse et ton prono. Quand l'arrivée est connue (chargée automatiquement ou saisie à la main), l'appli compare ton prono et le sien.</p>
+  </div>
+</div>
+<div id="statsView" class="hidden">
+  <div class="card">
+    <h2>📈 Stats & ROI — jockeys, entraîneurs, hippodromes</h2>
+    <p class="sub">Le ROI répond à la question : « si j'avais misé 1 € en simple gagnant sur chacun de ses partants, combien j'aurais gagné ou perdu ? ». Il est calculé sur la dernière cote connue, donc c'est une estimation proche du rapport réel.</p>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Historique à charger
+        <select id="st-days"><option value="7">7 derniers jours</option><option value="14" selected>14 jours</option><option value="30">30 jours</option><option value="60">60 jours (long)</option></select></label>
+      <button class="btn primary" id="st-load">📥 Charger l'historique des résultats</button>
+      <button class="btn small danger" id="st-reset">Effacer les stats</button>
+    </div>
+    <div id="st-msg"></div>
+    <div class="kpis" id="st-kpis" style="margin:12px 0 0"></div>
+  </div>
+  <div class="card">
+    <div class="filters">
+      <select id="st-group">
+        <option value="e">Par entraîneur</option><option value="j">Par jockey / driver</option><option value="je">Duo jockey + entraîneur</option>
+        <option value="he">Entraîneur sur un hippodrome</option><option value="hj">Jockey sur un hippodrome</option><option value="h">Par hippodrome (favoris du marché)</option>
+      </select>
+      <select id="st-hip"><option value="">Tous hippodromes</option></select>
+      <select id="st-disc"><option value="">Toutes disciplines</option></select>
+      <label style="flex-direction:row;align-items:center;gap:6px">Cote max <input type="number" id="st-cmax" placeholder="aucune" step="1" min="1" style="width:80px"></label>
+      <label style="flex-direction:row;align-items:center;gap:6px">Partants mini <input type="number" id="st-min" value="10" min="1" style="width:70px"></label>
+      <select id="st-sort"><option value="roi">Trier par ROI</option><option value="win">Trier par % victoires</option><option value="n">Trier par nombre de courses</option><option value="profit">Trier par bénéfice</option></select>
+      <input id="st-q" placeholder="🔍 Nom…">
+    </div>
+    <div class="tablewrap"><table id="st-table"></table></div>
+    <p class="sub">« Partants mini » écarte les petits échantillons : un entraîneur avec 3 partants et 1 victoire à cote 20 affiche un ROI énorme qui ne veut rien dire. Plus il y a de courses, plus le chiffre est fiable. Un ROI positif sur un gros échantillon est rare : c'est ce qu'on cherche.</p>
   </div>
 </div>
 <div id="boardView" class="hidden">
@@ -688,8 +719,8 @@ $('table').onclick=e=>{
 
 $('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
-  const v=t.dataset.view||'bets';['bets','race','live','poker','calc','board','mypage'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
-  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return; if(v==='board'){renderBoard();return;} if(v==='mypage'){renderMyPage();return;}
+  const v=t.dataset.view||'bets';['bets','race','live','poker','calc','board','mypage','stats'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
+  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return; if(v==='board'){renderBoard();return;} if(v==='mypage'){renderMyPage();return;} if(v==='stats'){ingestAll();fillStatsFilters();renderStats();return;}
   cat=t.dataset.cat;
   if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
@@ -1512,6 +1543,81 @@ document.getElementById('mypageView').addEventListener('click',e=>{
   if(t.dataset.mpdel){delete state.myAn[t.dataset.mpdel];save();renderMyPage();}
 });
 renderMyPage();
+
+// =================== STATS & ROI ===================
+const SKEY=KEY+'.stats';
+let ST={dict:{h:[],j:[],e:[],d:[]},days:{},keys:{},rows:[]};
+try{const x=JSON.parse(localStorage.getItem(SKEY));if(x&&x.rows)ST=x;}catch(e){}
+const DIX={h:{},j:{},e:{},d:{}};Object.keys(DIX).forEach(k=>ST.dict[k].forEach((v,i)=>DIX[k][v]=i));
+function di(k,v){v=String(v||'?').trim().toUpperCase()||'?';if(DIX[k][v]==null){DIX[k][v]=ST.dict[k].length;ST.dict[k].push(v);}return DIX[k][v];}
+function stSave(){try{localStorage.setItem(SKEY,JSON.stringify(ST));return true;}catch(e){
+  ST.rows=ST.rows.slice(Math.floor(ST.rows.length/4));try{localStorage.setItem(SKEY,JSON.stringify(ST));}catch(_){}$('st-msg').innerHTML='<div class="msg">⚠️ Mémoire du navigateur pleine : les plus anciens résultats ont été retirés.</div>';return false;}}
+const dayN=d=>Math.floor(Date.parse(d+'T12:00Z')/864e5);
+function ingestRace(race){
+  if(!race||!race.arrivee||!race.arrivee.length||!race.partants||ST.keys[race.key])return false;
+  const P=race.partants.filter(p=>!p.np&&+p.cote>0);if(P.length<3)return false;
+  const dn=dayN(race.date),h=di('h',race.hippo),d=di('d',race.disc);
+  P.forEach(p=>{const pos=race.arrivee.indexOf(p.num)+1;ST.rows.push([dn,h,d,di('j',p.jockey),di('e',p.entr),Math.round(p.cote*10),pos,P.length]);});
+  ST.keys[race.key]=1;return true;
+}
+function ingestAll(){let n=0;Object.values(state.races).forEach(r=>{if(ingestRace(r))n++;});if(n)stSave();return n;}
+async function loadHistory(){
+  const N=+$('st-days').value,box=$('st-msg');let added=0,daysDone=0;
+  for(let i=1;i<=N;i++){
+    const date=new Date(Date.now()-i*864e5).toISOString().slice(0,10);if(ST.days[date]){daysDone++;continue;}
+    box.innerHTML=`<div class="msg ok">Jour ${i}/${N} (${new Date(date+'T12:00').toLocaleDateString('fr-FR')})… ${added} courses ajoutées</div>`;
+    try{
+      const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[],jobs=[];
+      Rs.forEach(r=>(r.courses||[]).forEach(c=>{const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`;if(ST.keys[key])return;
+        const arr=Array.isArray(c.ordreArrivee)?c.ordreArrivee.flat().map(Number).filter(Boolean):[];if(arr.length)jobs.push({r,c,key,arr});}));
+      const worker=async()=>{while(jobs.length){const {r,c,key,arr}=jobs.shift();try{
+        const parts=await fetchPartants(date,r.numOfficiel,c.numOrdre);
+        if(ingestRace({key,date,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',disc:DISC[c.discipline]||c.discipline||'',arrivee:arr,partants:parts}))added++;}catch(e){}}};
+      await Promise.all([1,2,3,4,5,6].map(worker));
+      ST.days[date]=1;daysDone++;if(!stSave())break;
+    }catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';renderStats();return;}
+  }
+  box.innerHTML=`<div class="msg ok">✅ Historique à jour : ${added} nouvelles courses ajoutées.</div>`;fillStatsFilters();renderStats();
+}
+function fillStatsFilters(){
+  const cnt=(col,dict)=>{const c={};ST.rows.forEach(r=>c[r[col]]=(c[r[col]]||0)+1);return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([i,n])=>[dict[i],n]);};
+  const h=$('st-hip').value,d=$('st-disc').value;
+  $('st-hip').innerHTML='<option value="">Tous hippodromes</option>'+cnt(1,ST.dict.h).map(([v,n])=>`<option ${v===h?'selected':''} value="${esc(v)}">${esc(v)} (${n})</option>`).join('');
+  $('st-disc').innerHTML='<option value="">Toutes disciplines</option>'+cnt(2,ST.dict.d).map(([v])=>`<option ${v===d?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('');
+}
+function renderStats(){
+  const R=ST.rows,days=Object.keys(ST.days).length,races=Object.keys(ST.keys).length;
+  const dmin=R.length?Math.min(...R.map(r=>r[0])):0,dmax=R.length?Math.max(...R.map(r=>r[0])):0,fd=n=>new Date(n*864e5).toLocaleDateString('fr-FR');
+  $('st-kpis').innerHTML=[['Courses analysées',races],['Partants',R.length],['Période',R.length?fd(dmin)+' → '+fd(dmax):'—'],['Jockeys',ST.dict.j.length],['Entraîneurs',ST.dict.e.length]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:${String(v).length>12?'15px':'22px'}">${v}</div></div>`).join('');
+  const g=$('st-group').value,hip=$('st-hip').value,disc=$('st-disc').value,cmax=+$('st-cmax').value||0,min=+$('st-min').value||1,q=$('st-q').value.trim().toUpperCase();
+  const hI=hip?DIX.h[hip]:null,dI=disc?DIX.d[disc]:null,D=ST.dict,agg={};
+  for(const r of R){if(hI!=null&&r[1]!==hI)continue;if(dI!=null&&r[2]!==dI)continue;const cote=r[5]/10;if(cmax&&cote>cmax)continue;
+    let k;
+    if(g==='e')k=D.e[r[4]];else if(g==='j')k=D.j[r[3]];else if(g==='je')k=D.j[r[3]]+'  +  '+D.e[r[4]];else if(g==='he')k=D.e[r[4]]+'  @  '+D.h[r[1]];else if(g==='hj')k=D.j[r[3]]+'  @  '+D.h[r[1]];
+    else{k=D.h[r[1]];}
+    const a=agg[k]||(agg[k]={n:0,w:0,p:0,ret:0,cs:0});
+    if(g==='h'){a.races=a.races||{};a.all=(a.all||[]);a.all.push(r);continue;}
+    a.n++;a.cs+=cote;if(r[6]===1){a.w++;a.ret+=cote;}if(r[6]>=1&&r[6]<=3)a.p++;}
+  if(g==='h'){ // par hippodrome : ROI en jouant le favori du marché de chaque course
+    Object.values(agg).forEach(a=>{const byRace={};a.all.forEach(r=>{const k=r[0]+'|'+r[7]+'|'+r[2];(byRace[k]=byRace[k]||[]).push(r);});
+      Object.assign(a,{n:0,w:0,p:0,ret:0,cs:0});
+      Object.values(byRace).forEach(rs=>{const f=rs.reduce((m,r)=>r[5]<m[5]?r:m);a.n++;a.cs+=f[5]/10;if(f[6]===1){a.w++;a.ret+=f[5]/10;}if(f[6]>=1&&f[6]<=3)a.p++;});delete a.all;});
+  }
+  let L=Object.entries(agg).filter(([k,a])=>a.n>=min&&(!q||k.includes(q))&&!/^\?/.test(k)).map(([k,a])=>({k,...a,roi:(a.ret-a.n)/a.n,winr:a.w/a.n,profit:a.ret-a.n}));
+  const s=$('st-sort').value;L.sort((x,y)=>s==='n'?y.n-x.n:s==='win'?y.winr-x.winr:s==='profit'?y.profit-x.profit:y.roi-x.roi);
+  const lab={e:'Entraîneur',j:'Jockey / driver',je:'Jockey + entraîneur',he:'Entraîneur @ hippodrome',hj:'Jockey @ hippodrome',h:'Hippodrome (favori joué)'}[g];
+  let h=`<thead><tr><th>#</th><th>${lab}</th><th class="num">${g==='h'?'Courses':'Partants'}</th><th class="num">Victoires</th><th class="num">% victoires</th><th class="num">% placé</th><th class="num">Cote moy.</th><th class="num">ROI gagnant</th><th class="num">Bénéf. (1 €/partant)</th></tr></thead><tbody>`;
+  if(!R.length)h+='<tr><td colspan="9" class="empty">Pas encore de résultats. Clique sur « Charger l\'historique des résultats ».</td></tr>';
+  else if(!L.length)h+='<tr><td colspan="9" class="empty">Rien ne correspond. Baisse « Partants mini » ou retire des filtres.</td></tr>';
+  L.slice(0,100).forEach((a,i)=>{h+=`<tr><td class="sub">${i+1}</td><td><b>${esc(a.k)}</b></td><td class="num">${a.n}</td><td class="num">${a.w}</td><td class="num">${pct(a.winr)}</td><td class="num">${pct(a.p/a.n)}</td><td class="num">${(a.cs/a.n).toFixed(1)}</td>
+    <td class="num"><b class="${a.roi>=0?'pos':'neg'}">${a.roi>=0?'+':''}${pct(a.roi)}</b></td><td class="num ${a.profit>=0?'pos':'neg'}">${a.profit>=0?'+':''}${eur(a.profit)}</td></tr>`;});
+  $('st-table').innerHTML=h+'</tbody>';
+}
+$('st-load').onclick=loadHistory;
+$('st-reset').onclick=()=>{if(!confirm('Effacer toutes les stats ?'))return;ST={dict:{h:[],j:[],e:[],d:[]},days:{},keys:{},rows:[]};Object.keys(DIX).forEach(k=>DIX[k]={});stSave();fillStatsFilters();renderStats();};
+['st-group','st-hip','st-disc','st-cmax','st-min','st-sort','st-q'].forEach(i=>$(i).addEventListener('input',renderStats));
+ingestAll();fillStatsFilters();renderStats();
 
 resetForm();render();
 })();
