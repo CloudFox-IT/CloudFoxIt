@@ -1,0 +1,1712 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi Paris</title>
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Suivi Paris">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --bg:#f5f6f8; --card:#ffffff; --text:#1b1f24; --muted:#667085; --border:#e3e6ea;
+  --accent:#2563eb; --accent-soft:#e8efff; --win:#15803d; --win-soft:#e7f6ec;
+  --loss:#c0262d; --loss-soft:#fdecec; --pend:#a16207; --pend-soft:#fdf5e1;
+  --void:#5b6472; --void-soft:#eef0f3; --sport:#2563eb; --turf:#9a5b13;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1216; --card:#181c22; --text:#e7eaee; --muted:#9aa4b2; --border:#2a3038;
+    --accent:#6b9bff; --accent-soft:#1c2a46; --win:#4ade80; --win-soft:#13301f;
+    --loss:#f87171; --loss-soft:#3a1717; --pend:#fbbf24; --pend-soft:#3a2d0c;
+    --void:#a3acb9; --void-soft:#252a31; --sport:#6b9bff; --turf:#e0a35a;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1216; --card:#181c22; --text:#e7eaee; --muted:#9aa4b2; --border:#2a3038;
+  --accent:#6b9bff; --accent-soft:#1c2a46; --win:#4ade80; --win-soft:#13301f;
+  --loss:#f87171; --loss-soft:#3a1717; --pend:#fbbf24; --pend-soft:#3a2d0c;
+  --void:#a3acb9; --void-soft:#252a31; --sport:#6b9bff; --turf:#e0a35a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+h1{font-size:22px;margin:0}
+h2{font-size:16px;margin:0 0 12px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
+.btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.small{padding:4px 8px;font-size:13px}
+.btn.danger{color:var(--loss)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tab{padding:8px 14px;border-radius:999px;border:1px solid var(--border);background:var(--card);cursor:pointer;color:var(--text);font:inherit}
+.tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px}
+.kpi .l{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.kpi .v{font-size:22px;font-weight:650;margin-top:2px;font-variant-numeric:tabular-nums}
+.pos{color:var(--win)} .neg{color:var(--loss)}
+form .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.filters input,.filters select{padding:6px 8px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;cursor:pointer;user-select:none}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+td.desc{white-space:normal;min-width:220px}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.s-gagne{background:var(--win-soft);color:var(--win)}
+.s-perdu{background:var(--loss-soft);color:var(--loss)}
+.s-encours{background:var(--pend-soft);color:var(--pend)}
+.s-rembourse{background:var(--void-soft);color:var(--void)}
+.cat{font-weight:600;font-size:12px}
+.cat.sport{color:var(--sport)} .cat.turf{color:var(--turf)}
+.sub{color:var(--muted);font-size:12px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:800px){.two{grid-template-columns:1fr}}
+canvas{width:100%;height:220px;display:block}
+.empty{color:var(--muted);text-align:center;padding:24px}
+.hidden{display:none!important}
+.quick{display:flex;gap:4px}
+.mus{display:inline-flex;gap:2px;flex-wrap:wrap}
+.mus i{font-style:normal;font-size:11px;font-weight:700;min-width:18px;text-align:center;padding:1px 3px;border-radius:4px;background:var(--void-soft);color:var(--void)}
+.mus i.p1{background:var(--win-soft);color:var(--win)}
+.mus i.p2{background:var(--accent-soft);color:var(--accent)}
+.mus i.px{background:var(--loss-soft);color:var(--loss)}
+.bar{height:6px;border-radius:3px;background:var(--accent);margin-top:3px}
+.score{display:inline-block;min-width:34px;text-align:center;padding:2px 6px;border-radius:6px;font-weight:700;font-size:13px}
+.star{background:none;border:0;cursor:pointer;font-size:18px;padding:0 4px;color:var(--muted)}
+.star.on{color:#e5a50a}
+tr.np td{opacity:.45;text-decoration:line-through}
+tr.fav td{background:var(--pend-soft)}
+.cotein{width:70px;padding:4px 6px;text-align:right}
+.trend-up{color:var(--loss)} .trend-down{color:var(--win)}
+.msg{padding:10px 12px;border-radius:8px;background:var(--pend-soft);color:var(--pend);margin:10px 0;font-size:14px}
+.msg.ok{background:var(--win-soft);color:var(--win)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;margin-top:8px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--c);margin-right:4px;vertical-align:-1px}
+select,input{max-width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font:inherit;color:var(--text);font-size:13px}
+.chip.active{border-color:var(--accent);background:var(--accent-soft)}
+.alert{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:10px;border:1px solid var(--border);margin-bottom:8px;background:var(--bg)}
+.alert.mene{border-color:var(--loss);background:var(--loss-soft)}
+.alert.nul{border-color:var(--pend);background:var(--pend-soft)}
+.alert.arb{border-color:var(--win);background:var(--win-soft)}
+.alert.envol,.alert.chute{border-color:var(--accent);background:var(--accent-soft)}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--loss);margin-right:6px;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.oddcell{display:inline-block;min-width:54px;text-align:right}
+.oddcell.fav{font-weight:700;text-decoration:underline}
+.scorebox{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:10px}
+.rules label{flex-direction:row;align-items:flex-start;gap:8px;color:var(--text);font-size:14px;border:1px solid var(--border);border-radius:8px;padding:8px}
+.sportlist{display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow:auto;margin-top:6px}
+.sportlist label{flex-direction:row;align-items:center;gap:4px;font-size:13px;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div><h1>🏆 Suivi Paris — Sport &amp; Turf</h1>
+      <label class="sub" style="flex-direction:row;align-items:center;gap:6px;margin-top:4px"><input type="checkbox" id="ar-toggle"> 🏁 Résultats et rapports automatiques (toutes les 2 min) <span id="ar-state"></span></label></div>
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-cat="all">Tous</button>
+      <button class="tab" data-cat="sport">⚽ Paris sportifs</button>
+      <button class="tab" data-cat="turf">🐎 Turf (chevaux)</button>
+      <button class="tab" data-view="live">📡 Live sport</button>
+      <button class="tab" data-view="mypage">⭐ Ma page turf</button>
+      <button class="tab" data-view="board">📋 Tableau turf</button>
+      <button class="tab" data-view="race">🔎 Analyse course</button>
+      <button class="tab" data-view="stats">📈 Stats & ROI</button>
+      <button class="tab" data-view="poker">🃏 Poker</button>
+      <button class="tab" data-view="calc">🧮 Calculs</button>
+    </div>
+  </header>
+  <div id="ar-banner" class="hidden"></div>
+
+  <div id="betsView">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <h2 id="formTitle">➕ Nouveau pari</h2>
+    <form id="betForm" autocomplete="off">
+      <input type="hidden" id="f-id">
+      <div class="grid">
+        <label>Catégorie
+          <select id="f-cat">
+            <option value="sport">⚽ Pari sportif</option>
+            <option value="turf">🐎 Turf (chevaux)</option>
+          </select>
+        </label>
+        <label>Date <input type="date" id="f-date" required></label>
+        <label>Opérateur / Bookmaker <input id="f-book" list="books" placeholder="Winamax, PMU, Betclic…"></label>
+
+        <!-- Sport -->
+        <label class="sport-only">Sport
+          <select id="f-sport">
+            <option>Football</option><option>Tennis</option><option>Basket</option><option>Rugby</option>
+            <option>Handball</option><option>Hockey</option><option>MMA / Boxe</option><option>F1 / Moto</option>
+            <option>Cyclisme</option><option>Esport</option><option>Autre</option>
+          </select>
+        </label>
+        <label class="sport-only">Compétition <input id="f-comp" placeholder="Ligue 1, Roland-Garros…"></label>
+        <label class="sport-only">Match / Événement <input id="f-event" placeholder="PSG - OM"></label>
+        <label class="sport-only">Pronostic <input id="f-pick" placeholder="PSG gagne, +2.5 buts…"></label>
+        <label class="sport-only">Type
+          <select id="f-stype"><option>Simple</option><option>Combiné</option><option>Système</option><option>Live</option></select>
+        </label>
+
+        <!-- Turf -->
+        <label class="turf-only">Hippodrome <input id="f-hippo" list="hippos" placeholder="Vincennes, Longchamp…"></label>
+        <label class="turf-only">Course <input id="f-race" placeholder="R1C4 — Prix d'Amérique"></label>
+        <label class="turf-only">Discipline
+          <select id="f-disc"><option>Trot attelé</option><option>Trot monté</option><option>Plat</option><option>Obstacle</option></select>
+        </label>
+        <label class="turf-only">Type de pari
+          <select id="f-ttype">
+            <option>Simple gagnant</option><option>Simple placé</option><option>Couplé gagnant</option><option>Couplé placé</option>
+            <option>Couplé ordre</option><option>Trio</option><option>Trio ordre</option><option>2 sur 4</option>
+            <option>Tiercé</option><option>Quarté+</option><option>Quinté+</option><option>Multi</option><option>Pick 5</option><option>Super 4</option>
+          </select>
+        </label>
+        <label class="turf-only">Chevaux joués (n°) <input id="f-horses" placeholder="7 - 3 - 12"></label>
+
+        <label>Mise (€) <input type="number" id="f-stake" step="0.01" min="0" required></label>
+        <label><span id="oddLabel">Cote</span> <input type="number" id="f-odd" step="0.01" min="1" placeholder="ex : 2.10"></label>
+        <label>Statut
+          <select id="f-status">
+            <option value="encours">⏳ En cours</option><option value="gagne">✅ Gagné</option>
+            <option value="perdu">❌ Perdu</option><option value="rembourse">↩️ Remboursé</option>
+          </select>
+        </label>
+        <label>Gain total (€) <input type="number" id="f-return" step="0.01" min="0" placeholder="auto = mise × cote"></label>
+      </div>
+      <label style="margin-top:10px">Notes <textarea id="f-notes" rows="2" placeholder="Analyse, raison du pari…"></textarea></label>
+      <div class="actions">
+        <button class="btn primary" type="submit" id="saveBtn">Enregistrer</button>
+        <button class="btn hidden" type="button" id="cancelBtn">Annuler la modification</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <h2>📈 Évolution du bénéfice</h2>
+      <canvas id="chart"></canvas>
+    </div>
+    <div class="card">
+      <h2 id="breakTitle">📊 Répartition</h2>
+      <div class="tablewrap"><table id="breakdown"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📋 Tableau des paris</h2>
+    <div class="filters">
+      <input id="q" placeholder="🔍 Rechercher…">
+      <select id="fStatus">
+        <option value="">Tous statuts</option><option value="encours">En cours</option>
+        <option value="gagne">Gagné</option><option value="perdu">Perdu</option><option value="rembourse">Remboursé</option>
+      </select>
+      <select id="fPeriod">
+        <option value="">Toute période</option><option value="7">7 derniers jours</option>
+        <option value="30">30 derniers jours</option><option value="month">Ce mois-ci</option><option value="year">Cette année</option>
+      </select>
+      <span style="flex:1"></span>
+      <label style="flex-direction:row;align-items:center;gap:6px">Bankroll de départ (€)
+        <input type="number" id="bankroll" step="1" min="0" style="width:90px">
+      </label>
+      <label style="flex-direction:row;align-items:center;gap:6px" title="Gains ou pertes réalisés avant de saisir tes paris ici">Report avant l'appli (€)
+        <input type="number" id="report" step="0.01" style="width:90px">
+      </label>
+    </div>
+    <div class="tablewrap"><table id="table"></table></div>
+    <div class="actions">
+      <button class="btn" id="csvBtn">⬇️ Export CSV (Excel)</button>
+      <button class="btn" id="jsonBtn">💾 Sauvegarde JSON</button>
+      <button class="btn" id="importBtn">📂 Importer / ajouter des paris (JSON)</button>
+      <input type="file" id="importFile" accept=".json,application/json" class="hidden">
+    </div>
+    <p class="sub">Les données sont enregistrées dans ce navigateur. Fais une sauvegarde JSON de temps en temps pour ne rien perdre.</p>
+  </div>
+  </div>
+<div id="calcView" class="hidden">
+  <div class="two">
+    <div class="card" id="c-arb">
+      <h2>💰 Arbitrage (surebet)</h2>
+      <p class="sub">Mets la meilleure cote de chaque issue, chacune chez un bookmaker différent. Si la somme des probabilités est sous 100 %, tu gagnes quoi qu'il arrive.</p>
+      <div class="filters"><select id="ca-n"><option value="2">2 issues (tennis, basket, gagnant/placé…)</option><option value="3">3 issues (1 N 2)</option></select>
+        <label style="flex-direction:row;align-items:center;gap:6px">Mise totale (€) <input type="number" id="ca-total" value="100" step="1" min="0" style="width:90px"></label>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="ca-round" checked> Arrondir à 0,10 €</label></div>
+      <div class="tablewrap"><table id="ca-rows"></table></div>
+      <div id="ca-res"></div>
+    </div>
+    <div class="card">
+      <h2>🛡️ Couverture live / cash-out maison</h2>
+      <p class="sub">Tu as un pari en cours. Combien jouer sur l'issue contraire, maintenant en live, pour gagner la même somme quoi qu'il arrive ?</p>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+        <label>Mise initiale (€) <input type="number" id="ch-s" value="10" step="0.5"></label>
+        <label>Cote initiale <input type="number" id="ch-a" value="3" step="0.01"></label>
+        <label>Cote live contraire n°1 <input type="number" id="ch-b1" value="1.8" step="0.01"></label>
+        <label>Cote live contraire n°2 <input type="number" id="ch-b2" placeholder="nul (si 1N2)" step="0.01"></label>
+      </div>
+      <div id="ch-res"></div>
+    </div>
+  </div>
+  <div class="two">
+    <div class="card">
+      <h2>🐎 Dutching (plusieurs chevaux, même gain)</h2>
+      <p class="sub">Répartit ta mise sur plusieurs chevaux pour gagner la même somme si n'importe lequel gagne.</p>
+      <div class="grid" style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <label>Cotes (séparées par des espaces) <input id="cd-odds" value="4.5 6 9"></label>
+        <label>Mise totale (€) <input type="number" id="cd-total" value="10" step="0.5"></label>
+      </div>
+      <div id="cd-res"></div>
+    </div>
+    <div class="card">
+      <h2>📐 Value bet & mise de Kelly</h2>
+      <p class="sub">Si tu penses qu'une issue a plus de chances que ce que dit la cote, c'est une value. Kelly calcule la mise optimale (on utilise un quart de Kelly, plus prudent).</p>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+        <label>Cote <input type="number" id="ck-odd" value="2.4" step="0.01"></label>
+        <label>Ta proba (%) <input type="number" id="ck-p" value="48" step="1"></label>
+        <label>Bankroll (€) <input type="number" id="ck-bank" step="1"></label>
+      </div>
+      <div id="ck-res"></div>
+    </div>
+  </div>
+  <div class="two">
+    <div class="card">
+      <h2>🔁 Convertir une cote</h2>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px">
+        <label>Décimale <input id="cv-dec" value="2.50"></label><label>Fractionnaire <input id="cv-frac"></label><label>Américaine <input id="cv-us"></label><label>Probabilité (%) <input id="cv-p"></label>
+      </div>
+      <h2 style="margin-top:16px">📊 Marge d'un marché</h2>
+      <label>Toutes les cotes du marché (espaces) <input id="cm-odds" value="1.85 3.60 4.40"></label>
+      <div id="cm-res"></div>
+    </div>
+    <div class="card">
+      <h2>🔗 Combiné</h2>
+      <div class="grid" style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+        <label>Cotes des sélections (espaces) <input id="cc-odds" value="1.45 1.60 1.30"></label>
+        <label>Mise (€) <input type="number" id="cc-stake" value="5" step="0.5"></label>
+      </div>
+      <div id="cc-res"></div>
+    </div>
+  </div>
+</div>
+<div id="mypageView" class="hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">⭐ Ma page turf</h2>
+      <div class="actions" style="margin:0">
+        <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="mp-date"></label>
+        <button class="btn primary" id="mp-load">📡 Charger / actualiser</button>
+      </div>
+    </div>
+    <div id="mp-msg"></div>
+    <div class="kpis" id="mp-kpis" style="margin:12px 0 0"></div>
+  </div>
+  <div class="card">
+    <h2>🏆 Les courses les plus importantes du jour</h2>
+    <div id="mp-top"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">📂 Courses par catégorie</h2>
+      <select id="mp-sort"><option value="prix">Trier par allocation</option><option value="heure">Trier par heure</option></select>
+    </div>
+    <div class="tabs" id="mp-cats" style="margin:12px 0"></div>
+    <div class="tablewrap"><table id="mp-list"></table></div>
+  </div>
+  <div class="card">
+    <h2>✍️ Mes analyses</h2>
+    <div class="kpis" id="mp-score"></div>
+    <div class="tablewrap"><table id="mp-an"></table></div>
+    <p class="sub">Clique sur ✍️ à côté d'une course pour noter ton analyse et ton prono. Quand l'arrivée est connue (chargée automatiquement ou saisie à la main), l'appli compare ton prono et le sien.</p>
+  </div>
+</div>
+<div id="statsView" class="hidden">
+  <div class="card">
+    <h2>📈 Stats & ROI — jockeys, entraîneurs, hippodromes</h2>
+    <p class="sub">Le ROI répond à la question : « si j'avais misé 1 € en simple gagnant sur chacun de ses partants, combien j'aurais gagné ou perdu ? ». Il est calculé sur la dernière cote connue, donc c'est une estimation proche du rapport réel.</p>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Historique à charger
+        <select id="st-days"><option value="7">7 derniers jours</option><option value="14" selected>14 jours</option><option value="30">30 jours</option><option value="60">60 jours (long)</option></select></label>
+      <button class="btn primary" id="st-load">📥 Charger l'historique des résultats</button>
+      <button class="btn small danger" id="st-reset">Effacer les stats</button>
+    </div>
+    <div id="st-msg"></div>
+    <div class="kpis" id="st-kpis" style="margin:12px 0 0"></div>
+  </div>
+  <div class="card">
+    <div class="filters">
+      <select id="st-group">
+        <option value="e">Par entraîneur</option><option value="j">Par jockey / driver</option><option value="je">Duo jockey + entraîneur</option>
+        <option value="he">Entraîneur sur un hippodrome</option><option value="hj">Jockey sur un hippodrome</option><option value="h">Par hippodrome (favoris du marché)</option>
+      </select>
+      <select id="st-hip"><option value="">Tous hippodromes</option></select>
+      <select id="st-disc"><option value="">Toutes disciplines</option></select>
+      <label style="flex-direction:row;align-items:center;gap:6px">Cote max <input type="number" id="st-cmax" placeholder="aucune" step="1" min="1" style="width:80px"></label>
+      <label style="flex-direction:row;align-items:center;gap:6px">Partants mini <input type="number" id="st-min" value="10" min="1" style="width:70px"></label>
+      <select id="st-sort"><option value="roi">Trier par ROI</option><option value="win">Trier par % victoires</option><option value="n">Trier par nombre de courses</option><option value="profit">Trier par bénéfice</option></select>
+      <input id="st-q" placeholder="🔍 Nom…">
+    </div>
+    <div class="tablewrap"><table id="st-table"></table></div>
+    <p class="sub">« Partants mini » écarte les petits échantillons : un entraîneur avec 3 partants et 1 victoire à cote 20 affiche un ROI énorme qui ne veut rien dire. Plus il y a de courses, plus le chiffre est fiable. Un ROI positif sur un gros échantillon est rare : c'est ce qu'on cherche.</p>
+  </div>
+</div>
+<div id="boardView" class="hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">📋 Tableau turf du jour</h2>
+      <div class="actions" style="margin:0">
+        <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="tb-date"></label>
+        <button class="btn primary" id="tb-load">📡 Charger / actualiser les cotes</button>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-auto"> Auto toutes les 5 min</label>
+      </div>
+    </div>
+    <div id="tb-msg"></div>
+    <div class="filters" style="margin-top:10px">
+      <select id="tb-reu"><option value="">Toutes les réunions</option></select>
+      <select id="tb-disc"><option value="">Toutes disciplines</option><option>Trot attelé</option><option>Trot monté</option><option>Plat</option><option>Obstacle</option></select>
+      <select id="tb-when"><option value="up">À venir</option><option value="">Toute la journée</option></select>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-fav"> ⭐ Courses avec mes favoris</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="tb-moves"> 🔥 Courses avec grosse baisse</label>
+    </div>
+  </div>
+  <div class="card">
+    <h2>⭐ Mes favoris du jour</h2>
+    <div class="tablewrap"><table id="tb-favs"></table></div>
+    <p class="sub">Tes chevaux favoris engagés ce jour-là, avec ce qui a changé depuis leur dernière course vue. Gère la liste dans l'onglet Analyse course (partie Mes favoris).</p>
+  </div>
+  <div class="card">
+    <h2>🔥 Plus grosses baisses de cote (l'argent rentre)</h2>
+    <div class="tablewrap"><table id="tb-moves-t"></table></div>
+    <p class="sub">Variation = cote actuelle comparée à la cote de référence du matin (ou à ton premier relevé). Une forte baisse veut dire que beaucoup de parieurs jouent ce cheval.</p>
+  </div>
+  <div id="tb-board"></div>
+</div>
+<div id="pokerView" class="hidden">
+  <div class="kpis" id="pk-kpis"></div>
+  <div class="card">
+    <h2 id="pk-formTitle">➕ Nouvelle session de poker</h2>
+    <form id="pk-form" autocomplete="off">
+      <input type="hidden" id="pk-id">
+      <div class="grid">
+        <label>Date <input type="date" id="pk-date" required></label>
+        <label>Format
+          <select id="pk-type"><option>Cash game</option><option>Tournoi (MTT)</option><option>Sit & Go</option><option>Spin / Expresso</option></select></label>
+        <label>Site / Lieu <input id="pk-site" list="pksites" placeholder="Winamax, PokerStars…"></label>
+        <label>Jeu <select id="pk-game"><option>NL Hold'em</option><option>PLO (Omaha)</option><option>Autre</option></select></label>
+        <label>Limite / Buy-in <input id="pk-limit" placeholder="NL10, MTT 5 €…"></label>
+        <label>Investi (€) <input type="number" id="pk-in" step="0.01" min="0" required placeholder="buy-in + recaves"></label>
+        <label>Récupéré (€) <input type="number" id="pk-out" step="0.01" min="0" required placeholder="cash-out / gains"></label>
+        <label>Durée (h) <input type="number" id="pk-dur" step="0.25" min="0" placeholder="1.5"></label>
+        <label class="pk-tourn">Place <input type="number" id="pk-place" min="1" placeholder="12"></label>
+        <label class="pk-tourn">Joueurs <input type="number" id="pk-field" min="1" placeholder="350"></label>
+      </div>
+      <label style="margin-top:10px">Notes <textarea id="pk-notes" rows="2" placeholder="Mains clés, tilt, niveau des tables…"></textarea></label>
+      <div class="actions"><button class="btn primary" type="submit" id="pk-save">Enregistrer</button><button class="btn hidden" type="button" id="pk-cancel">Annuler la modification</button></div>
+    </form>
+  </div>
+  <div class="two">
+    <div class="card"><h2>📈 Évolution de la bankroll poker</h2><canvas id="pk-chart"></canvas></div>
+    <div class="card"><h2>📊 Par format</h2><div class="tablewrap"><table id="pk-break"></table></div></div>
+  </div>
+  <div class="card">
+    <h2>📋 Sessions</h2>
+    <div class="filters">
+      <select id="pk-fType"><option value="">Tous formats</option><option>Cash game</option><option>Tournoi (MTT)</option><option>Sit & Go</option><option>Spin / Expresso</option></select>
+      <span style="flex:1"></span>
+      <label style="flex-direction:row;align-items:center;gap:6px">Bankroll poker de départ (€) <input type="number" id="pk-start" step="0.01" style="width:90px"></label>
+    </div>
+    <div class="tablewrap"><table id="pk-table"></table></div>
+  </div>
+</div>
+<datalist id="pksites"><option>Winamax</option><option>PokerStars</option><option>PMU Poker</option><option>Unibet Poker</option><option>Betclic Poker</option><option>Casino (live)</option><option>Partie entre amis</option></datalist>
+<div id="liveView" class="hidden">
+  <div class="card">
+    <h2>📡 Cotes live — configuration</h2>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Clé API <input id="l-key" type="password" placeholder="clé The Odds API" style="width:240px"></label>
+      <button class="btn" id="l-sportsBtn">Charger les compétitions</button>
+      <label style="flex-direction:row;align-items:center;gap:6px">Actualiser toutes les
+        <select id="l-int"><option value="60">1 min</option><option value="120">2 min</option><option value="300">5 min</option><option value="600">10 min</option></select></label>
+      <button class="btn primary" id="l-start">▶️ Démarrer</button>
+      <button class="btn" id="l-demo">🎮 Mode démo</button>
+    </div>
+    <p class="sub">Les cotes viennent de <b>The Odds API</b> (the-odds-api.com, clé gratuite : 500 requêtes/mois). Coût estimé : <b id="l-cost">—</b>. <span id="l-quota"></span> La clé reste dans ce navigateur.</p>
+    <div class="sportlist" id="l-sports"></div>
+    <div class="rules">
+      <label><input type="checkbox" data-rule="mene"> <span>🔻 <b>Favori mené</b> — le favori d'avant-match perd au score</span></label>
+      <label><input type="checkbox" data-rule="nul"> <span>🤝 <b>Favori accroché</b> — score nul alors qu'il devait gagner</span></label>
+      <label><input type="checkbox" data-rule="envol"> <span>🚀 <b>Cote du favori qui s'envole</b> — hausse ≥ seuil</span></label>
+      <label><input type="checkbox" data-rule="arb"> <span>💰 <b>Arbitrage</b> — meilleures cotes de plusieurs bookmakers = gain garanti</span></label>
+      <label><input type="checkbox" data-rule="chute"> <span>📉 <b>Cote de l'outsider qui chute</b> — baisse ≥ seuil</span></label>
+    </div>
+    <div class="filters" style="margin-top:10px">
+      <label style="flex-direction:row;align-items:center;gap:6px">Favori = cote d'avant-match ≤ <input id="l-seuil" type="number" step="0.05" min="1" style="width:80px"></label>
+      <label style="flex-direction:row;align-items:center;gap:6px">Variation de cote ≥ <input id="l-var" type="number" step="5" min="5" style="width:70px"> %</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="l-sound"> 🔔 Son</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="l-notif"> 📲 Notifications</label>
+    </div>
+    <div id="l-msg"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">🚨 Alertes</h2><button class="btn small" id="l-clear">Effacer</button></div>
+    <div id="l-alerts" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="l-title">⚽ Matchs</h2>
+    <div class="filters"><select id="l-show"><option value="live">En direct seulement</option><option value="all">En direct + à venir</option></select><span class="sub" id="l-last"></span></div>
+    <div class="tablewrap"><table id="l-table"></table></div>
+    <p class="sub">Cotes = moyenne des bookmakers. <u>Souligné</u> = favori d'avant-match. ↑/↓ = évolution depuis le premier relevé. La courbe montre la cote du favori.</p>
+  </div>
+</div>
+<div id="raceView" class="hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">🎯 Pronos du jour</h2>
+      <div class="actions" style="margin:0"><label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="pr-date"></label><button class="btn primary" id="pr-go">Générer les pronos</button></div>
+    </div>
+    <div id="pr-msg"></div>
+    <div id="pr-out"></div>
+    <p class="sub">Calcul automatique à partir de la forme (musique) et des cotes du marché. C'est une aide à la décision, pas une garantie : aucun calcul ne gagne à coup sûr. Joue seulement ce que tu peux te permettre de perdre.</p>
+  </div>
+
+  <div class="card">
+    <h2>🔎 Charger une course</h2>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="r-date"></label>
+      <button class="btn primary" id="r-load">📡 Charger le programme PMU</button>
+      <select id="r-saved"><option value="">— Courses déjà analysées —</option></select>
+    </div>
+    <div id="r-msg"></div>
+    <div id="r-prog"></div>
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer;color:var(--accent)">✍️ Saisie manuelle des partants (si le chargement auto ne marche pas)</summary>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px">
+        <label>Hippodrome <input id="m-hippo" list="hippos"></label>
+        <label>Course <input id="m-race" placeholder="R1C4 — Prix …"></label>
+        <label>Discipline <select id="m-disc"><option>Trot attelé</option><option>Trot monté</option><option>Plat</option><option>Obstacle</option></select></label>
+      </div>
+      <label style="margin-top:10px">Partants — une ligne par cheval : <b>n° ; nom ; jockey ; entraîneur ; musique ; cote</b>
+        <textarea id="m-list" rows="6" placeholder="1 ; Idao de Tillard ; C. Thomain ; T. Duvaldestin ; 1a1a2aDa1a ; 3.5&#10;2 ; Hooker Berry ; J.-M. Bazire ; N. Bazire ; 3a1a1a5a ; 6&#10;…"></textarea>
+      </label>
+      <div class="actions"><button class="btn primary" id="m-go">Analyser cette course</button></div>
+    </details>
+  </div>
+
+  <div id="r-analysis" class="hidden">
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 id="r-title" style="margin:0"></h2>
+        <div class="actions" style="margin:0">
+          <button class="btn" id="r-refresh">🔄 Actualiser les cotes</button>
+          <button class="btn" id="r-snap">📸 Enregistrer les cotes saisies</button>
+          <button class="btn primary" id="r-bet">🎟️ Parier sur la sélection</button>
+        </div>
+      </div>
+      <div class="sub" id="r-sub"></div>
+      <div class="tablewrap" style="margin-top:10px"><table id="r-table"></table></div>
+      <p class="sub">⭐ = ajouter aux favoris · Coche des chevaux puis « Parier sur la sélection » pour pré-remplir un pari turf. <b>Forme</b> = note /10 calculée sur les 5 dernières courses de la musique (récentes = plus de poids). <b>Proba</b> = probabilité implicite tirée de la cote.</p>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h2>📉 Courbe des cotes</h2>
+        <canvas id="r-chart"></canvas>
+        <div class="legend" id="r-legend"></div>
+      </div>
+      <div class="card">
+        <h2>🧠 Synthèse</h2>
+        <div id="r-synth"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>⭐ Mes favoris</h2>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="scan-date"></label>
+      <button class="btn primary" id="scan-go">🔍 Lesquels de mes favoris courent ?</button>
+    </div>
+    <div id="scan-msg"></div>
+    <div class="tablewrap"><table id="scan-table"></table></div>
+    <h2 style="margin-top:16px">Liste de mes favoris</h2>
+    <div class="tablewrap"><table id="favTable"></table></div>
+    <label style="margin-top:10px">Ajouter des favoris : un nom par ligne (ou séparés par des virgules), tu peux coller toute ta liste d'un coup
+      <textarea id="fav-new" rows="3" placeholder="Idao de Tillard&#10;Go On Boy&#10;Hooker Berry"></textarea></label>
+    <div class="actions"><button class="btn" id="fav-add">⭐ Ajouter à mes favoris</button><span class="sub" id="fav-addmsg"></span></div>
+  </div>
+</div>
+</div>
+
+<datalist id="books"><option>PMU</option><option>Winamax</option><option>Betclic</option><option>Unibet</option><option>Parions Sport (FDJ)</option><option>ZEbet</option><option>Genybet</option><option>Bwin</option><option>PokerStars Sports</option></datalist>
+<datalist id="hippos"><option>Vincennes</option><option>Longchamp</option><option>Chantilly</option><option>Deauville</option><option>Saint-Cloud</option><option>Auteuil</option><option>Enghien</option><option>Cagnes-sur-Mer</option><option>Pau</option><option>Lyon-Parilly</option><option>Marseille-Borély</option></datalist>
+
+<script>
+(function(){
+const KEY='suiviParis.v1';
+const STATUS={encours:'⏳ En cours',gagne:'✅ Gagné',perdu:'❌ Perdu',rembourse:'↩️ Remboursé'};
+const $=id=>document.getElementById(id);
+const eur=n=>(n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR'});
+const pct=n=>isFinite(n)?(n*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %':'—';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let state={bets:[],bankroll:50,report:60};
+try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.bets))state=s;}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}}
+
+let cat='all', sortKey='date', sortDir=-1;
+
+// ---- calculs
+function ret(b){ // montant retourné
+  if(b.status==='gagne') return b.ret!=null&&b.ret!==''?+b.ret:(+b.stake)*(+b.odd||0);
+  if(b.status==='rembourse') return +b.stake;
+  return 0;
+}
+function profit(b){return b.status==='encours'?0:ret(b)-(+b.stake);}
+function desc(b){
+  if(b.cat==='sport') return `<b>${esc(b.event||'—')}</b>${b.pick?' · '+esc(b.pick):''}<div class="sub">${esc(b.sport)}${b.comp?' · '+esc(b.comp):''} · ${esc(b.stype)}</div>`;
+  return `<b>${esc(b.race||'—')}</b> · ${esc(b.ttype)}${b.horses?' : '+esc(b.horses):''}<div class="sub">${esc(b.hippo||'')}${b.hippo?' · ':''}${esc(b.disc)}</div>`;
+}
+function stats(list){
+  const settled=list.filter(b=>b.status!=='encours');
+  const stake=settled.reduce((a,b)=>a+(+b.stake),0);
+  const returned=settled.reduce((a,b)=>a+ret(b),0);
+  const wins=settled.filter(b=>b.status==='gagne').length;
+  const decided=settled.filter(b=>b.status!=='rembourse').length;
+  const odds=list.filter(b=>+b.odd>0);
+  return {n:list.length,pending:list.length-settled.length,
+    pendingStake:list.filter(b=>b.status==='encours').reduce((a,b)=>a+(+b.stake),0),
+    stake,returned,profit:returned-stake,roi:stake?(returned-stake)/stake:NaN,
+    hit:decided?wins/decided:NaN,avgOdd:odds.length?odds.reduce((a,b)=>a+(+b.odd),0)/odds.length:NaN};
+}
+
+// ---- filtres
+function inPeriod(d,p){
+  if(!p) return true;
+  const dt=new Date(d+'T12:00'), now=new Date();
+  if(p==='month') return dt.getMonth()===now.getMonth()&&dt.getFullYear()===now.getFullYear();
+  if(p==='year') return dt.getFullYear()===now.getFullYear();
+  return (now-dt)/864e5<=+p;
+}
+function filtered(){
+  const q=$('q').value.trim().toLowerCase(), st=$('fStatus').value, p=$('fPeriod').value;
+  return state.bets.filter(b=>(cat==='all'||b.cat===cat)&&(!st||b.status===st)&&inPeriod(b.date,p)&&
+    (!q||Object.values(b).join(' ').toLowerCase().includes(q)));
+}
+
+// ---- rendu
+function render(){
+  const list=filtered(), s=stats(list);
+  const cur=(+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit;
+  const k=[
+    ['Paris',s.n+(s.pending?` <span class="sub">(${s.pending} en cours)</span>`:'')],
+    ['Total misé',eur(s.stake)],
+    ['Total gagné',eur(s.returned)],
+    ['Bénéfice',`<span class="${s.profit>=0?'pos':'neg'}">${s.profit>=0?'+':''}${eur(s.profit)}</span>`],
+    ['ROI',`<span class="${s.roi>=0?'pos':'neg'}">${pct(s.roi)}</span>`],
+    ['Réussite',pct(s.hit)],
+    ['Cote moyenne',isFinite(s.avgOdd)?s.avgOdd.toFixed(2):'—'],
+    ['En jeu',eur(s.pendingStake)],
+    ['Bankroll actuelle',`<span class="${cur>=(+state.bankroll||0)?'pos':'neg'}">${eur(cur)}</span>`],
+  ];
+  $('kpis').innerHTML=k.map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+
+  // tableau
+  const cols=[['date','Date'],['cat','Cat.'],['desc','Pari'],['book','Opérateur'],['stake','Mise','num'],['odd','Cote','num'],['status','Statut'],['ret','Retour','num'],['profit','Bénéf.','num'],['','']];
+  const val=(b,k)=>k==='ret'?ret(b):k==='profit'?profit(b):k==='stake'||k==='odd'?+b[k]||0:k==='desc'?(b.event||b.race||''):(b[k]||'');
+  const rows=[...list].sort((a,b)=>{const x=val(a,sortKey),y=val(b,sortKey);return (x>y?1:x<y?-1:(a.created-b.created))*sortDir;});
+  let h='<thead><tr>'+cols.map(([k,l,c])=>`<th class="${c||''}" data-k="${k}">${l}${k===sortKey?(sortDir>0?' ▲':' ▼'):''}</th>`).join('')+'</tr></thead><tbody>';
+  if(!rows.length) h+=`<tr><td colspan="10" class="empty">Aucun pari pour l'instant. Ajoute ton premier pari ci-dessus 👆</td></tr>`;
+  for(const b of rows){
+    const p=profit(b);
+    h+=`<tr>
+      <td>${new Date(b.date+'T12:00').toLocaleDateString('fr-FR')}</td>
+      <td><span class="cat ${b.cat}">${b.cat==='sport'?'⚽ Sport':'🐎 Turf'}</span></td>
+      <td class="desc">${desc(b)}${b.notes?`<div class="sub">📝 ${esc(b.notes)}</div>`:''}</td>
+      <td>${esc(b.book)}</td>
+      <td class="num">${eur(+b.stake)}</td>
+      <td class="num">${+b.odd?(+b.odd).toFixed(2):'—'}</td>
+      <td><span class="pill s-${b.status}">${STATUS[b.status]}</span>
+        ${b.status==='encours'?`<div class="quick" style="margin-top:4px"><button class="btn small" data-q="gagne" data-id="${b.id}" title="Gagné">✅</button><button class="btn small" data-q="perdu" data-id="${b.id}" title="Perdu">❌</button><button class="btn small" data-q="rembourse" data-id="${b.id}" title="Remboursé">↩️</button></div>`:''}</td>
+      <td class="num">${b.status==='encours'?'—':eur(ret(b))}</td>
+      <td class="num ${p>0?'pos':p<0?'neg':''}">${b.status==='encours'?'—':(p>=0?'+':'')+eur(p)}</td>
+      <td><button class="btn small" data-edit="${b.id}">✏️</button> <button class="btn small danger" data-del="${b.id}">🗑️</button></td>
+    </tr>`;
+  }
+  $('table').innerHTML=h+'</tbody>';
+
+  renderBreakdown(list);
+  drawChart(list);
+}
+
+function renderBreakdown(list){
+  const key=cat==='sport'?b=>b.sport:cat==='turf'?b=>b.ttype:b=>b.cat==='sport'?'⚽ Paris sportifs':'🐎 Turf';
+  $('breakTitle').textContent=cat==='sport'?'📊 Par sport':cat==='turf'?'📊 Par type de pari':'📊 Sport vs Turf';
+  const g={};list.forEach(b=>(g[key(b)]=g[key(b)]||[]).push(b));
+  const ent=Object.entries(g).map(([k,v])=>[k,stats(v)]).sort((a,b)=>b[1].profit-a[1].profit);
+  let h='<thead><tr><th>Catégorie</th><th class="num">Paris</th><th class="num">Misé</th><th class="num">Bénéfice</th><th class="num">ROI</th><th class="num">Réussite</th></tr></thead><tbody>';
+  if(!ent.length) h+='<tr><td colspan="6" class="empty">Pas encore de données</td></tr>';
+  for(const [k,s] of ent) h+=`<tr><td>${esc(k)}</td><td class="num">${s.n}</td><td class="num">${eur(s.stake)}</td><td class="num ${s.profit>=0?'pos':'neg'}">${s.profit>=0?'+':''}${eur(s.profit)}</td><td class="num">${pct(s.roi)}</td><td class="num">${pct(s.hit)}</td></tr>`;
+  $('breakdown').innerHTML=h+'</tbody>';
+}
+
+function drawChart(list){
+  const c=$('chart'),dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);
+  const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();
+  const settled=list.filter(b=>b.status!=='encours').sort((a,b)=>a.date.localeCompare(b.date)||a.created-b.created);
+  x.font='12px system-ui';x.fillStyle=col('--muted');
+  if(settled.length<1){x.textAlign='center';x.fillText('Le graphique apparaîtra après ton premier pari terminé',w/2,h/2);return;}
+  let cum=0;const pts=[0,...settled.map(b=>cum+=profit(b))];
+  const min=Math.min(0,...pts),max=Math.max(0,...pts),rng=(max-min)||1;
+  const L=56,R=10,T=10,B=20,X=i=>L+(w-L-R)*(pts.length>1?i/(pts.length-1):0),Y=v=>T+(h-T-B)*(1-(v-min)/rng);
+  x.strokeStyle=col('--border');x.lineWidth=1;x.textAlign='right';x.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=min+rng*i/4,y=Y(v);x.beginPath();x.moveTo(L,y);x.lineTo(w-R,y);x.stroke();x.fillText(Math.round(v)+' €',L-6,y);}
+  x.strokeStyle=col('--muted');x.setLineDash([4,4]);x.beginPath();x.moveTo(L,Y(0));x.lineTo(w-R,Y(0));x.stroke();x.setLineDash([]);
+  const last=pts[pts.length-1];x.strokeStyle=last>=0?col('--win'):col('--loss');x.lineWidth=2.5;x.lineJoin='round';
+  x.beginPath();pts.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.stroke();
+  x.textAlign='left';x.textBaseline='alphabetic';x.fillStyle=col('--muted');x.fillText(`${settled.length} paris terminés`,L,h-4);
+}
+
+// ---- formulaire
+function toggleCat(){
+  const t=$('f-cat').value==='turf';
+  document.querySelectorAll('.sport-only').forEach(e=>e.classList.toggle('hidden',t));
+  document.querySelectorAll('.turf-only').forEach(e=>e.classList.toggle('hidden',!t));
+  $('oddLabel').textContent=t?'Cote / Rapport (pour 1 €)':'Cote';
+}
+const F=['cat','date','book','sport','comp','event','pick','stype','hippo','race','disc','ttype','horses','stake','odd','status','notes'];
+function resetForm(){
+  $('betForm').reset();$('f-id').value='';$('f-date').value=new Date().toISOString().slice(0,10);
+  if(cat!=='all') $('f-cat').value=cat;
+  $('formTitle').textContent='➕ Nouveau pari';$('saveBtn').textContent='Enregistrer';$('cancelBtn').classList.add('hidden');toggleCat();
+}
+$('f-cat').onchange=toggleCat;
+$('betForm').onsubmit=e=>{
+  e.preventDefault();
+  const id=$('f-id').value, b={};
+  F.forEach(k=>b[k]=$('f-'+k).value.trim());
+  b.ret=$('f-return').value===''?null:+$('f-return').value;
+  if(id){const i=state.bets.findIndex(x=>x.id===id);state.bets[i]={...state.bets[i],...b};}
+  else state.bets.push({...b,id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),created:Date.now()});
+  save();resetForm();render();
+};
+$('cancelBtn').onclick=resetForm;
+
+$('table').onclick=e=>{
+  const t=e.target.closest('button,th');if(!t)return;
+  if(t.tagName==='TH'&&t.dataset.k){const k=t.dataset.k;sortDir=sortKey===k?-sortDir:-1;sortKey=k;render();return;}
+  const b=state.bets.find(x=>x.id===(t.dataset.edit||t.dataset.del||t.dataset.id));if(!b)return;
+  if(t.dataset.q){
+    b.status=t.dataset.q;
+    if(b.status==='gagne'&&!(+b.odd)){const r=prompt('Gain total reçu (€) ?');if(r===null){b.status='encours';return;}b.ret=+r.replace(',','.')||0;}
+    save();render();
+  } else if(t.dataset.del){if(confirm('Supprimer ce pari ?')){state.bets=state.bets.filter(x=>x!==b);save();render();}}
+  else if(t.dataset.edit){
+    F.forEach(k=>$('f-'+k).value=b[k]??'');$('f-return').value=b.ret??'';$('f-id').value=b.id;toggleCat();
+    $('formTitle').textContent='✏️ Modifier le pari';$('saveBtn').textContent='Mettre à jour';$('cancelBtn').classList.remove('hidden');
+    $('betForm').scrollIntoView({behavior:'smooth'});
+  }
+};
+
+$('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+  const v=t.dataset.view||'bets';['bets','race','live','poker','calc','board','mypage','stats'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
+  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return; if(v==='board'){renderBoard();return;} if(v==='mypage'){renderMyPage();return;} if(v==='stats'){ingestAll();fillStatsFilters();renderStats();return;}
+  cat=t.dataset.cat;
+  if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
+['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
+$('bankroll').value=state.bankroll;
+$('bankroll').oninput=()=>{state.bankroll=+$('bankroll').value||0;save();render();};
+$('report').value=state.report||0;
+$('report').oninput=()=>{state.report=+$('report').value||0;save();render();};
+
+// ---- export / import
+function dl(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+$('csvBtn').onclick=()=>{
+  const head=['Date','Catégorie','Opérateur','Sport','Compétition','Événement','Pronostic','Type sport','Hippodrome','Course','Discipline','Type pari turf','Chevaux','Mise','Cote','Statut','Retour','Bénéfice','Notes'];
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"', n=v=>String(v).replace('.',',');
+  const lines=filtered().map(b=>[b.date,b.cat==='sport'?'Sport':'Turf',b.book,b.cat==='sport'?b.sport:'',b.comp,b.event,b.pick,b.cat==='sport'?b.stype:'',b.hippo,b.race,b.cat==='turf'?b.disc:'',b.cat==='turf'?b.ttype:'',b.horses,n(+b.stake),n(+b.odd||''),STATUS[b.status].slice(2).trim(),n(ret(b).toFixed(2)),n(profit(b).toFixed(2)),b.notes].map(q).join(';'));
+  dl('paris.csv','﻿'+[head.map(q).join(';'),...lines].join('\r\n'),'text/csv');
+};
+$('jsonBtn').onclick=()=>dl(`sauvegarde-paris-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(state,null,2),'application/json');
+$('importBtn').onclick=()=>$('importFile').click();
+$('importFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  try{const d=JSON.parse(await f.text());if(!Array.isArray(d.bets))throw 0;
+    const ids=new Set(state.bets.map(b=>b.id)),nw=d.bets.filter(b=>b&&b.id&&!ids.has(b.id));
+    if(confirm(`${nw.length} nouveau(x) pari(s) à ajouter (${d.bets.length-nw.length} déjà présent(s)).${d.favs?' Favoris et courses seront aussi fusionnés.':''} Continuer ?`)){
+      const wasEmpty=!state.bets.length;
+      nw.forEach(b=>{b.created=b.created||Date.now();state.bets.push(b);});
+      Object.assign(state.races,d.races||{});Object.entries(d.myAn||{}).forEach(([k,v])=>{if(!state.myAn[k])state.myAn[k]=v;});if(d.poker&&Array.isArray(d.poker.sessions)){const pids=new Set(PK().sessions.map(x=>x.id));d.poker.sessions.filter(x=>x&&x.id&&!pids.has(x.id)).forEach(x=>PK().sessions.push(x));if(wasEmpty&&d.poker.start!=null){PK().start=d.poker.start;$('pk-start').value=PK().start;}}Object.entries(d.favs||{}).forEach(([k,v])=>{if(!state.favs[k])state.favs[k]=v;});
+      if(wasEmpty&&d.bankroll!=null){state.bankroll=d.bankroll;state.report=d.report||0;$('bankroll').value=state.bankroll;$('report').value=state.report;}
+      fillSaved();renderFavs();save();render();}
+  }catch(_){alert('Fichier invalide.');}
+  e.target.value='';
+};
+window.addEventListener('resize',()=>{drawChart(filtered());if(!$('pokerView').classList.contains('hidden'))renderPoker();});
+
+// =================== ANALYSE COURSE ===================
+state.races=state.races||{}; state.favs=state.favs||{};
+const API='https://online.turfinfo.api.pmu.fr/rest/client/1/programme/';
+const COLORS=['#2563eb','#d9480f','#2f9e44','#ae3ec9','#e8590c','#0c8599','#c2255c','#5f3dc4','#868e96','#f08c00'];
+let cur=null, prog=null;
+const pmuDate=d=>d.slice(8,10)+d.slice(5,7)+d.slice(0,4);
+const DISC={ATTELE:'Trot attelé',MONTE:'Trot monté',PLAT:'Plat',HAIE:'Obstacle',STEEPLECHASE:'Obstacle',CROSS:'Obstacle'};
+const fkey=n=>String(n||'').trim().toUpperCase();
+const isFav=n=>!!state.favs[fkey(n)];
+function msg(t,ok){$('r-msg').innerHTML=t?`<div class="msg ${ok?'ok':''}">${t}</div>`:'';}
+
+function parseMus(m){ // "1a2a(25)Da0a" -> [{p:'1',d:'a'},...] plus récent d'abord
+  return [...String(m||'').replace(/\(\d+\)/g,'').matchAll(/([0-9DATR])([a-z])/gi)].map(x=>({p:x[1].toUpperCase(),d:x[2].toLowerCase()}));
+}
+function formScore(m){
+  const r=parseMus(m).slice(0,5); if(!r.length) return null;
+  const pts={1:10,2:8,3:6.5,4:5,5:4,6:2.5,7:2,8:1.5,9:1};
+  let s=0,w=0; r.forEach((x,i)=>{const wt=1-i*0.15; s+=(pts[x.p]||0)*wt; w+=wt;});
+  return Math.round(s/w*10)/10;
+}
+function musHtml(m){
+  const r=parseMus(m).slice(0,8); if(!r.length) return '<span class="sub">—</span>';
+  return '<span class="mus">'+r.map(x=>`<i class="${x.p==='1'?'p1':/[23]/.test(x.p)?'p2':/[DATR0]/.test(x.p)?'px':''}">${x.p}${x.d}</i>`).join('')+'</span>';
+}
+function scoreColor(s){return s==null?'':s>=7?'s-gagne':s>=4.5?'s-encours':'s-perdu';}
+
+async function api(path){const r=await fetch(API+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+
+$('r-date').value=new Date().toISOString().slice(0,10);
+$('r-load').onclick=async()=>{
+  msg('Chargement du programme…',true);$('r-prog').innerHTML='';
+  try{
+    const d=await api(pmuDate($('r-date').value));
+    prog=(d.programme&&d.programme.reunions)||[];
+    if(!prog.length) throw new Error('vide');
+    msg('');
+    $('r-prog').innerHTML=prog.map(r=>`<div style="margin:10px 0 4px"><b>R${r.numOfficiel} — ${esc(r.hippodrome&&(r.hippodrome.libelleCourt||r.hippodrome.libelleLong)||'')}</b></div><div class="chips">`+
+      (r.courses||[]).map(c=>`<button class="chip" data-r="${r.numOfficiel}" data-c="${c.numOrdre}">C${c.numOrdre} · ${c.heureDepart?new Date(c.heureDepart).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''} · ${esc(c.libelle||'')} <span class="sub">${esc(DISC[c.discipline]||c.discipline||'')} ${c.distance?c.distance+'m':''} ${c.nombreDeclaresPartants?'· '+c.nombreDeclaresPartants+' part.':''}</span></button>`).join('')+'</div>').join('');
+  }catch(e){
+    msg('⚠️ Impossible de charger le programme automatiquement ('+esc(e.message)+'). Le service PMU bloque peut-être l\'accès depuis ce navigateur. Utilise la <b>saisie manuelle</b> ci-dessous : l\'analyse, les favoris et la courbe des cotes fonctionnent pareil.');
+  }
+};
+$('r-prog').onclick=e=>{const b=e.target.closest('.chip');if(b)loadCourse(+b.dataset.r,+b.dataset.c);};
+
+async function fetchPartants(date,R,C){
+  const d=await api(`${pmuDate(date)}/R${R}/C${C}/participants`);
+  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',def:p.deferre||'',oeil:p.oeilleres||'',
+    np:p.statut&&p.statut!=='PARTANT',cote:(p.dernierRapportDirect&&p.dernierRapportDirect.rapport)||(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null,
+    ref:(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null}));
+}
+async function loadCourse(R,C){
+  const date=$('r-date').value, reu=prog.find(r=>r.numOfficiel===R), co=reu.courses.find(c=>c.numOrdre===C);
+  msg('Chargement des partants…',true);
+  try{
+    const parts=await fetchPartants(date,R,C);
+    const key=`${date}-R${R}C${C}`, old=state.races[key];
+    const race=old||{key,date,R,C,hippo:(reu.hippodrome&&reu.hippodrome.libelleCourt)||'',libelle:co.libelle||'',disc:DISC[co.discipline]||co.discipline||'',
+      distance:co.distance,heure:co.heureDepart,auto:true,snaps:[]};
+    race.partants=parts; snapshot(race,parts); recordFavs(race);
+    state.races[key]=race; save(); msg(''); openRace(key);
+  }catch(e){msg('⚠️ Impossible de charger les partants ('+esc(e.message)+'). Utilise la saisie manuelle.');}
+}
+function snapshot(race,parts){
+  const cotes={};parts.forEach(p=>{if(+p.cote>0&&!p.np)cotes[p.num]=+p.cote;});
+  if(!Object.keys(cotes).length) return;
+  const last=race.snaps[race.snaps.length-1];
+  if(last&&JSON.stringify(last.c)===JSON.stringify(cotes)) return;
+  race.snaps.push({t:Date.now(),c:cotes});
+}
+
+$('m-go').onclick=()=>{
+  const lines=$('m-list').value.split(/\n/).map(l=>l.trim()).filter(Boolean);
+  const parts=lines.map((l,i)=>{
+    let f=l.split(/\s*[;\t]\s*/);
+    if(f.length<2){const m=l.match(/^(\d+)\s+(.+?)(?:\s+(\d+(?:[.,]\d+)?))?$/);f=m?[m[1],m[2],'','','',m[3]||'']:[i+1,l];}
+    return {num:+f[0]||i+1,nom:f[1]||'',jockey:f[2]||'',entr:f[3]||'',mus:f[4]||'',cote:+(String(f[5]||'').replace(',','.'))||null,np:false};
+  });
+  if(!parts.length){alert('Ajoute au moins un partant.');return;}
+  const date=$('r-date').value, race_=$('m-race').value.trim()||'Course';
+  const key=`${date}-M-${race_}`, race=state.races[key]||{key,date,hippo:$('m-hippo').value.trim(),libelle:race_,disc:$('m-disc').value,auto:false,snaps:[]};
+  race.partants=parts; snapshot(race,parts); recordFavs(race); state.races[key]=race; save(); openRace(key);
+};
+
+function openRace(key){cur=state.races[key];$('r-analysis').classList.remove('hidden');fillSaved();$('r-saved').value=key;renderRace();$('r-analysis').scrollIntoView({behavior:'smooth'});}
+function fillSaved(){
+  const ks=Object.keys(state.races).sort().reverse();
+  $('r-saved').innerHTML='<option value="">— Courses déjà analysées ('+ks.length+') —</option>'+ks.map(k=>{const r=state.races[k];return `<option value="${esc(k)}">${new Date(r.date+'T12:00').toLocaleDateString('fr-FR')} · ${r.R?'R'+r.R+'C'+r.C+' ':''}${r.hippo?esc(r.hippo)+' · ':''}${esc(r.libelle)}</option>`;}).join('');
+}
+$('r-saved').onchange=()=>{if($('r-saved').value)openRace($('r-saved').value);};
+
+function renderRace(){
+  const r=cur, P=r.partants.filter(p=>!p.np&&+p.cote>0);
+  const inv=P.reduce((a,p)=>a+1/p.cote,0);
+  const rank={};[...P].sort((a,b)=>a.cote-b.cote).forEach((p,i)=>rank[p.num]=i+1);
+  const first=r.snaps[0]&&r.snaps[0].c||{};
+  $('r-title').textContent=`${r.R?'R'+r.R+'C'+r.C+' · ':''}${r.hippo?r.hippo+' · ':''}${r.libelle}`;
+  $('r-sub').textContent=[new Date(r.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}),r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'',r.disc,r.distance?r.distance+' m':'',r.partants.length+' partants',r.snaps.length+' relevé(s) de cotes'].filter(Boolean).join(' · ');
+  $('r-refresh').classList.toggle('hidden',!r.auto);
+  $('r-sub').innerHTML=esc($('r-sub').textContent)+(r.arrivee&&r.arrivee.length?`<div style="margin-top:6px;color:var(--text)">🏁 Arrivée : <b>${r.arrivee.slice(0,5).join(' - ')}</b></div>`:'')+(r.rapports?`<div style="margin-top:4px;color:var(--text)">${rapHtml(r)}</div>`:'');
+  const maxP=Math.max(...P.map(p=>1/p.cote/inv),0.01);
+  let h='<thead><tr><th></th><th>✔</th><th class="num">N°</th><th>Cheval</th><th>Jockey / Driver</th><th>Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Cote</th><th class="num">Évol.</th><th class="num">Proba</th><th class="num">Rang</th></tr></thead><tbody>';
+  for(const p of [...r.partants].sort((a,b)=>a.num-b.num)){
+    const sc=formScore(p.mus), pr=p.cote&&!p.np?1/p.cote/inv:null, f0=first[p.num];
+    let ev='—'; if(f0&&p.cote&&f0!==p.cote){const d=(p.cote-f0)/f0;ev=`<span class="${d>0?'trend-up':'trend-down'}">${d>0?'▲':'▼'} ${f0}→${p.cote}</span>`;}
+    h+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}">
+      <td><button class="star ${isFav(p.nom)?'on':''}" data-star="${esc(p.nom)}" title="Favori">${isFav(p.nom)?'★':'☆'}</button></td>
+      <td><input type="checkbox" class="sel" value="${p.num}" ${p.np?'disabled':''}></td>
+      <td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${isFav(p.nom)&&state.favs[fkey(p.nom)].note?`<div class="sub">📝 ${esc(state.favs[fkey(p.nom)].note)}</div>`:''}</td>
+      <td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
+      <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td>
+      <td class="num"><input class="cotein" type="number" step="0.1" min="1" data-cote="${p.num}" value="${p.cote||''}" ${p.np?'disabled':''}></td>
+      <td class="num">${ev}</td>
+      <td class="num">${pr==null?'—':(pr*100).toFixed(1)+' %<div class="bar" style="width:'+Math.round(pr/maxP*60)+'px;margin-left:auto"></div>'}</td>
+      <td class="num">${rank[p.num]?(rank[p.num]===1?'🥇':rank[p.num]===2?'🥈':rank[p.num]===3?'🥉':rank[p.num]):'—'}</td></tr>`;
+  }
+  $('r-table').innerHTML=h+'</tbody>';
+  renderSynth(P,inv);drawOdds();
+}
+
+function renderSynth(P,inv){
+  if(!P.length){$('r-synth').innerHTML='<p class="empty">Saisis des cotes pour voir la synthèse.</p>';return;}
+  const byCote=[...P].sort((a,b)=>a.cote-b.cote), byForm=[...P].filter(p=>formScore(p.mus)!=null).sort((a,b)=>formScore(b.mus)-formScore(a.mus));
+  const first=cur.snaps[0]&&cur.snaps[0].c||{};
+  const moves=P.filter(p=>first[p.num]).map(p=>({p,d:(p.cote-first[p.num])/first[p.num]}));
+  const down=moves.filter(m=>m.d<-0.1).sort((a,b)=>a.d-b.d).slice(0,3), up=moves.filter(m=>m.d>0.15).sort((a,b)=>b.d-a.d).slice(0,3);
+  // "value" = bonne forme mais cote élevée
+  const value=byForm.filter(p=>formScore(p.mus)>=6.5&&p.cote>=8).slice(0,3);
+  const lst=a=>a.map(p=>`<b>${p.num}</b> ${esc(p.nom)} <span class="sub">(${p.cote})</span>`).join(', ')||'<span class="sub">—</span>';
+  const fav=P.filter(p=>isFav(p.nom));
+  $('r-synth').innerHTML=`<table>
+    <tr><td>🥇 Favoris (cote)</td><td class="desc">${lst(byCote.slice(0,3))}</td></tr>
+    <tr><td>📈 Meilleure forme</td><td class="desc">${lst(byForm.slice(0,3))}</td></tr>
+    <tr><td>💎 Outsiders en forme</td><td class="desc">${lst(value)}</td></tr>
+    <tr><td>🔥 Cotes qui baissent</td><td class="desc">${down.map(m=>`<b>${m.p.num}</b> ${esc(m.p.nom)} <span class="pos">${(m.d*100).toFixed(0)} %</span>`).join(', ')||'<span class="sub">— (il faut plusieurs relevés)</span>'}</td></tr>
+    <tr><td>🧊 Cotes qui montent</td><td class="desc">${up.map(m=>`<b>${m.p.num}</b> ${esc(m.p.nom)} <span class="neg">+${(m.d*100).toFixed(0)} %</span>`).join(', ')||'<span class="sub">—</span>'}</td></tr>
+    <tr><td>⭐ Mes favoris engagés</td><td class="desc">${lst(fav)}</td></tr>
+    <tr><td>📊 Marge de l'opérateur</td><td class="desc">${((inv-1)*100).toFixed(1)} %</td></tr>
+  </table>`;
+}
+
+function drawOdds(){
+  const c=$('r-chart'),dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);
+  const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();
+  const S=cur.snaps; x.font='12px system-ui';x.fillStyle=col('--muted');$('r-legend').innerHTML='';
+  if(S.length<2){x.textAlign='center';x.fillText(S.length?'Actualise ou ré-enregistre les cotes plus tard pour voir la courbe':'Aucune cote enregistrée',w/2,h/2);return;}
+  const last=S[S.length-1].c;
+  let nums=Object.keys(last).sort((a,b)=>last[a]-last[b]).slice(0,6);
+  cur.partants.forEach(p=>{if(isFav(p.nom)&&last[p.num]&&!nums.includes(String(p.num)))nums.push(String(p.num));});
+  const vals=S.flatMap(s=>nums.map(n=>s.c[n]).filter(Boolean)), max=Math.max(...vals)*1.05, min=Math.max(1,Math.min(...vals)*0.95);
+  const L=40,R=30,T=10,B=22, t0=S[0].t, t1=S[S.length-1].t;
+  const X=t=>L+(w-L-R)*((t-t0)/((t1-t0)||1)), Y=v=>T+(h-T-B)*((v-min)/((max-min)||1));
+  x.strokeStyle=col('--border');x.textAlign='right';x.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=min+(max-min)*i/4;x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();x.fillText(v.toFixed(1),L-6,Y(v));}
+  x.textAlign='left';x.textBaseline='alphabetic';
+  [[t0,'left'],[t1,'right']].forEach(([t,a])=>{x.textAlign=a;x.fillText(new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),X(t),h-4);});
+  nums.forEach((n,i)=>{
+    const color=COLORS[i%COLORS.length]; x.strokeStyle=color;x.fillStyle=color;x.lineWidth=2;x.beginPath();
+    let started=false,lx,ly; S.forEach(s=>{const v=s.c[n];if(!v)return;const px=X(s.t),py=Y(v);started?x.lineTo(px,py):x.moveTo(px,py);started=true;lx=px;ly=py;});
+    x.stroke(); x.textAlign='left';x.textBaseline='middle';x.font='bold 12px system-ui';x.fillText(n,lx+4,ly);x.font='12px system-ui';
+  });
+  $('r-legend').innerHTML=nums.map((n,i)=>{const p=cur.partants.find(q=>String(q.num)===n);return `<span style="--c:${COLORS[i%COLORS.length]}">${n} ${esc(p?p.nom:'')}</span>`;}).join('')+'<span class="sub" style="--c:transparent">(plus bas = plus joué)</span>';
+}
+
+$('r-table').addEventListener('click',e=>{const s=e.target.closest('[data-star]');if(!s)return;toggleFav(s.dataset.star);});
+$('r-table').addEventListener('change',e=>{const i=e.target.closest('[data-cote]');if(!i)return;const p=cur.partants.find(q=>q.num==i.dataset.cote);p.cote=+i.value||null;save();renderRace();});
+$('r-snap').onclick=()=>{const n=cur.snaps.length;snapshot(cur,cur.partants);save();renderRace();msg(cur.snaps.length>n?'📸 Cotes enregistrées.':'Les cotes n\'ont pas changé depuis le dernier relevé.',true);};
+$('r-refresh').onclick=async()=>{
+  try{cur.partants=await fetchPartants(cur.date,cur.R,cur.C);snapshot(cur,cur.partants);save();renderRace();msg('🔄 Cotes actualisées ('+new Date().toLocaleTimeString('fr-FR')+').',true);}
+  catch(e){msg('⚠️ Actualisation impossible ('+esc(e.message)+'). Tu peux modifier les cotes à la main puis cliquer « Enregistrer les cotes saisies ».');}
+};
+$('r-bet').onclick=()=>{
+  const sel=[...document.querySelectorAll('.sel:checked')].map(c=>+c.value);
+  if(!sel.length){alert('Coche au moins un cheval.');return;}
+  document.querySelector('.tab[data-cat="turf"]').click();
+  $('f-cat').value='turf';toggleCat();
+  $('f-date').value=cur.date;$('f-hippo').value=cur.hippo||'';$('f-race').value=`${cur.R?'R'+cur.R+'C'+cur.C+' — ':''}${cur.libelle}`;
+  if([...$('f-disc').options].some(o=>o.value===cur.disc))$('f-disc').value=cur.disc;
+  $('f-horses').value=sel.join(' - ');
+  const types=['Simple gagnant','Couplé gagnant','Trio','Quarté+','Quinté+'];$('f-ttype').value=types[Math.min(sel.length,5)-1];
+  const p=cur.partants.find(q=>q.num===sel[0]);$('f-odd').value=sel.length===1&&p&&p.cote?p.cote:'';
+  $('f-book').value=$('f-book').value||'ZEturf';
+  $('betForm').scrollIntoView({behavior:'smooth'});$('f-stake').focus();
+};
+
+// favoris
+function toggleFav(nom){const k=fkey(nom);if(state.favs[k])delete state.favs[k];else state.favs[k]={nom,note:'',added:Date.now()};save();renderFavs();if(cur)renderRace();}
+function renderFavs(){
+  const seen={};Object.values(state.races).sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>(r.partants||[]).forEach(p=>{const k=fkey(p.nom);if(state.favs[k])seen[k]={r,p};}));
+  const F=Object.entries(state.favs).sort((a,b)=>a[0].localeCompare(b[0]));
+  let h='<thead><tr><th>Cheval</th><th>Dernière course vue</th><th>Musique</th><th class="num">Forme</th><th class="num">Cote</th><th>Note perso</th><th></th></tr></thead><tbody>';
+  if(!F.length) h+='<tr><td colspan="7" class="empty">Clique sur ☆ dans une course pour suivre un cheval.</td></tr>';
+  for(const [k,f] of F){const s=seen[k],sc=s?formScore(s.p.mus):null;
+    h+=`<tr><td><b>⭐ ${esc(f.nom)}</b></td><td>${s?`<a href="#" data-open="${esc(s.r.key)}">${new Date(s.r.date+'T12:00').toLocaleDateString('fr-FR')} · ${esc(s.r.hippo)} · ${esc(s.r.libelle)}</a>`:'<span class="sub">—</span>'}</td>
+    <td>${s?musHtml(s.p.mus):'—'}</td><td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${s&&s.p.cote?s.p.cote:'—'}</td>
+    <td><input data-note="${esc(k)}" value="${esc(f.note)}" placeholder="Ex : aime le terrain lourd" style="width:220px;padding:4px 6px"></td>
+    <td><button class="btn small danger" data-unfav="${esc(f.nom)}">🗑️</button></td></tr>`;}
+  $('favTable').innerHTML=h+'</tbody>';
+}
+$('favTable').addEventListener('click',e=>{const t=e.target.closest('[data-unfav],[data-open]');if(!t)return;e.preventDefault();
+  if(t.dataset.unfav)toggleFav(t.dataset.unfav);else openRace(t.dataset.open);});
+$('favTable').addEventListener('change',e=>{const i=e.target.closest('[data-note]');if(!i)return;state.favs[i.dataset.note].note=i.value;save();if(cur)renderRace();});
+$('fav-add').onclick=()=>{const L=$('fav-new').value.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);let n=0;
+  L.forEach(x=>{if(!isFav(x)){state.favs[fkey(x)]={nom:x,note:'',added:Date.now()};n++;}});save();renderFavs();if(cur)renderRace();if(typeof renderBoard==='function')renderBoard();
+  $('fav-new').value='';$('fav-addmsg').textContent=L.length?`${n} ajouté(s)${L.length-n?`, ${L.length-n} déjà dans la liste`:''}.`:'';};
+fillSaved();renderFavs();
+// --- favoris : suivi des changements & scan du programme
+const fmtEq=v=>v?String(v).toLowerCase().replace(/_/g,' ').replace(/^deferre /,'déferré ').replace(/anterieurs/,'antérieurs').replace(/posterieurs/,'postérieurs').replace(/oeilleres/,'œillères'):'';
+function favSnap(race,p){return {key:race.key,date:race.date,hippo:race.hippo,course:`${race.R?'R'+race.R+'C'+race.C+' ':''}${race.libelle}`,heure:race.heure||null,
+  num:p.num,jockey:p.jockey,entr:p.entr,mus:p.mus,cote:p.cote,def:p.def||'',oeil:p.oeil||'',np:!!p.np,disc:race.disc,dist:race.distance||null};}
+function recordFavs(race){
+  (race.partants||[]).forEach(p=>{const f=state.favs[fkey(p.nom)];if(!f)return;f.hist=f.hist||[];
+    const s=favSnap(race,p),i=f.hist.findIndex(h=>h.key===race.key);if(i>=0)f.hist[i]=s;else f.hist.push(s);
+    f.hist.sort((a,b)=>a.date.localeCompare(b.date));f.hist=f.hist.slice(-20);});
+}
+function newRuns(nm,om){const n=parseMus(nm).map(x=>x.p+x.d),o=parseMus(om).map(x=>x.p+x.d);if(!o.length)return [];
+  for(let i=0;i<=Math.min(n.length,6);i++){const rest=n.slice(i);const m=Math.min(rest.length,o.length,4);if(m&&rest.slice(0,m).join()===o.slice(0,m).join())return n.slice(0,i);}return null;}
+function favChanges(f,key){
+  const h=f.hist||[],cur=h.find(x=>x.key===key);if(!cur)return null;
+  const prev=[...h].filter(x=>x.key!==key&&x.date<=cur.date).pop();if(!prev)return {first:true,list:[]};
+  const L=[];
+  if(cur.np)L.push('🚫 Non-partant');
+  if(prev.jockey&&cur.jockey&&prev.jockey!==cur.jockey)L.push(`🏇 Jockey : ${esc(prev.jockey)} → <b>${esc(cur.jockey)}</b>`);
+  if(prev.entr&&cur.entr&&prev.entr!==cur.entr)L.push(`👤 Entraîneur : ${esc(prev.entr)} → <b>${esc(cur.entr)}</b>`);
+  if(prev.def!==cur.def&&(prev.def||cur.def))L.push(`🧲 Ferrure : ${esc(fmtEq(prev.def)||'ferré')} → <b>${esc(fmtEq(cur.def)||'ferré')}</b>`);
+  if(prev.oeil!==cur.oeil&&(prev.oeil||cur.oeil))L.push(`🕶️ Œillères : ${esc(fmtEq(prev.oeil)||'sans')} → <b>${esc(fmtEq(cur.oeil)||'sans')}</b>`);
+  if(prev.disc&&cur.disc&&prev.disc!==cur.disc)L.push(`🔀 Discipline : ${esc(prev.disc)} → <b>${esc(cur.disc)}</b>`);
+  if(prev.dist&&cur.dist&&Math.abs(prev.dist-cur.dist)>=200)L.push(`📏 Distance : ${prev.dist} m → <b>${cur.dist} m</b>`);
+  if(prev.hippo&&cur.hippo&&prev.hippo!==cur.hippo)L.push(`📍 Hippodrome : ${esc(prev.hippo)} → <b>${esc(cur.hippo)}</b>`);
+  const nr=newRuns(cur.mus,prev.mus);if(nr&&nr.length)L.push(`🆕 Couru depuis : ${musHtml(nr.join(''))}`);
+  return {prev,list:L};
+}
+let scanRes=[];
+async function scanFavs(){
+  const names=Object.keys(state.favs);if(!names.length){$('scan-msg').innerHTML='<div class="msg">Ajoute d\'abord des chevaux favoris (☆ dans une course ou champ ci-dessous).</div>';return;}
+  const date=$('scan-date').value,box=$('scan-msg');box.innerHTML='<div class="msg ok">Chargement du programme…</div>';
+  try{
+    const d=await api(pmuDate(date)),R=(d.programme&&d.programme.reunions)||[];
+    const jobs=[];R.forEach(r=>(r.courses||[]).forEach(c=>jobs.push({r,c})));
+    let done=0;scanRes=[];
+    const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();
+      try{const parts=await fetchPartants(date,r.numOfficiel,c.numOrdre);
+        if(parts.some(p=>state.favs[fkey(p.nom)])){
+          const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
+          race.partants=parts;snapshot(race,parts);state.races[key]=race;recordFavs(race);
+          parts.filter(p=>state.favs[fkey(p.nom)]).forEach(p=>scanRes.push({k:fkey(p.nom),key}));}
+      }catch(e){}
+      box.innerHTML=`<div class="msg ok">Recherche dans les courses… ${++done}</div>`;}};
+    await Promise.all([1,2,3,4,5,6].map(worker));
+    state.favScan={date,res:scanRes,t:Date.now()};save();fillSaved();renderFavs();
+    box.innerHTML=`<div class="msg ok">${scanRes.length?`✅ ${scanRes.length} favori(s) engagé(s) le ${new Date(date+'T12:00').toLocaleDateString('fr-FR')}.`:`Aucun de tes ${names.length} favoris ne court le ${new Date(date+'T12:00').toLocaleDateString('fr-FR')}.`}</div>`;
+  }catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';}
+  renderScan();
+}
+function renderScan(){
+  const S=state.favScan;if(!S||!S.res.length){$('scan-table').innerHTML='';return;}
+  let h='<thead><tr><th>Cheval</th><th>Course</th><th class="num">N°</th><th>Jockey / Entraîneur</th><th>Musique</th><th class="num">Cote</th><th>Changements depuis sa dernière course vue</th><th></th></tr></thead><tbody>';
+  for(const {k,key} of S.res){const f=state.favs[k],r=state.races[key];if(!f||!r)continue;const s=(f.hist||[]).find(x=>x.key===key);if(!s)continue;const ch=favChanges(f,key);
+    h+=`<tr class="${s.np?'np':''}"><td><b>⭐ ${esc(f.nom)}</b>${f.note?`<div class="sub">📝 ${esc(f.note)}</div>`:''}</td>
+    <td class="desc">${s.heure?new Date(s.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · ':''}<b>${esc(s.course)}</b><div class="sub">${esc(s.hippo)} · ${esc(s.disc||'')}${s.dist?' · '+s.dist+' m':''}</div></td>
+    <td class="num"><b>${s.num}</b></td><td>${esc(s.jockey)}<div class="sub">${esc(s.entr)}</div></td><td>${musHtml(s.mus)}</td><td class="num">${s.cote||'—'}</td>
+    <td class="desc">${!ch||ch.first?'<span class="sub">🆕 Première course suivie — pas encore de comparaison</span>':ch.list.length?ch.list.join('<br>'):`<span class="pos">✅ Rien n'a changé</span> <span class="sub">(vs ${new Date(ch.prev.date+'T12:00').toLocaleDateString('fr-FR')} ${esc(ch.prev.hippo||'')})</span>`}</td>
+    <td><button class="btn small" data-open="${esc(key)}">🔎 Analyser</button></td></tr>`;}
+  $('scan-table').innerHTML=h+'</tbody>';
+}
+$('scan-date').value=new Date().toISOString().slice(0,10);
+$('scan-go').onclick=scanFavs;
+$('scan-table').addEventListener('click',e=>{const t=e.target.closest('[data-open]');if(t)openRace(t.dataset.open);});
+renderScan();
+
+window.addEventListener('resize',()=>{if(cur&&!$('raceView').classList.contains('hidden'))drawOdds();});
+
+// =================== LIVE SPORT ===================
+const LDEF={key:'',sports:['soccer_france_ligue_one','soccer_uefa_champs_league'],interval:300,seuil:1.8,vari:30,rules:{mene:true,nul:true,envol:true,chute:false,arb:true},sound:true,notif:false};
+state.live=Object.assign({},LDEF,state.live||{});state.live.rules=Object.assign({},LDEF.rules,state.live.rules);
+let LEV={}, lAlerts=[], lSeen=new Set(), lTimer=null, demo=false, sportsMeta={};
+const OAPI='https://api.the-odds-api.com/v4/sports/';
+const SPORTMAP={Soccer:'Football',Basketball:'Basket',Tennis:'Tennis','Ice Hockey':'Hockey','Rugby Union':'Rugby','Rugby League':'Rugby','Mixed Martial Arts':'MMA / Boxe',Boxing:'MMA / Boxe',Handball:'Handball'};
+const L=state.live;
+function lmsg(t,ok){$('l-msg').innerHTML=t?`<div class="msg ${ok?'ok':''}">${t}</div>`:'';}
+// init UI
+$('l-key').value=L.key;$('l-int').value=L.interval;$('l-seuil').value=L.seuil;$('l-var').value=L.vari;$('l-sound').checked=L.sound;$('l-notif').checked=L.notif;
+document.querySelectorAll('[data-rule]').forEach(c=>{c.checked=!!L.rules[c.dataset.rule];c.onchange=()=>{L.rules[c.dataset.rule]=c.checked;save();lEvalAll();lRender();};});
+$('l-key').onchange=()=>{L.key=$('l-key').value.trim();save();};
+$('l-int').onchange=()=>{L.interval=+$('l-int').value;save();lCost();if(lTimer&&!demo)lStart();};
+$('l-seuil').onchange=()=>{L.seuil=+$('l-seuil').value||1.8;save();lEvalAll();lRender();};
+$('l-var').onchange=()=>{L.vari=+$('l-var').value||30;save();lEvalAll();lRender();};
+$('l-sound').onchange=()=>{L.sound=$('l-sound').checked;save();};
+$('l-notif').onchange=async()=>{L.notif=$('l-notif').checked;save();
+  if(L.notif&&'Notification' in window&&Notification.permission!=='granted'){try{await Notification.requestPermission();}catch(e){}}};
+function lCost(){const n=L.sports.length;$('l-cost').textContent=n?`${n*2} requêtes par actualisation ≈ ${Math.round(n*2*3600/L.interval)} par heure`:'choisis au moins une compétition';}
+function renderSportList(){
+  const all=Object.keys(sportsMeta).length?Object.values(sportsMeta):L.sports.map(k=>({key:k,title:k,group:''}));
+  $('l-sports').innerHTML=all.map(s=>`<label><input type="checkbox" value="${esc(s.key)}" ${L.sports.includes(s.key)?'checked':''}> ${esc(s.group?s.group+' · ':'')}${esc(s.title)}</label>`).join('');
+  lCost();
+}
+$('l-sports').onchange=()=>{L.sports=[...$('l-sports').querySelectorAll('input:checked')].map(i=>i.value);save();lCost();};
+async function oget(path,params=''){
+  const r=await fetch(`${OAPI}${path}?apiKey=${encodeURIComponent(L.key)}${params}`);
+  const rem=r.headers.get('x-requests-remaining');if(rem!=null)$('l-quota').textContent=`Requêtes restantes ce mois : ${rem}.`;
+  if(!r.ok){let t='';try{t=(await r.json()).message||'';}catch(e){}throw new Error(`HTTP ${r.status} ${t}`);}
+  return r.json();
+}
+$('l-sportsBtn').onclick=async()=>{
+  if(!L.key){lmsg('Entre d\'abord ta clé API (gratuite sur the-odds-api.com).');return;}
+  try{const d=await oget('');sportsMeta={};d.filter(s=>s.active&&!s.has_outrights).forEach(s=>sportsMeta[s.key]=s);renderSportList();lmsg(`${Object.keys(sportsMeta).length} compétitions disponibles. Coche celles à surveiller.`,true);}
+  catch(e){lmsg('⚠️ '+esc(e.message));}
+};
+
+// --- données
+function avgOdds(ev){
+  const acc={};(ev.bookmakers||[]).forEach(b=>(b.markets||[]).filter(m=>m.key==='h2h').forEach(m=>m.outcomes.forEach(o=>{(acc[o.name]=acc[o.name]||[]).push(o.price);})));
+  const a=n=>acc[n]?Math.round(acc[n].reduce((x,y)=>x+y,0)/acc[n].length*100)/100:null;
+  return {h:a(ev.home_team),d:a('Draw'),a:a(ev.away_team)};
+}
+function bestOdds(ev){
+  const B={};(ev.bookmakers||[]).forEach(b=>(b.markets||[]).filter(m=>m.key==='h2h').forEach(m=>m.outcomes.forEach(o=>{
+    const k=o.name===ev.home_team?'h':o.name===ev.away_team?'a':o.name==='Draw'?'d':null;if(k&&(!B[k]||o.price>B[k].p))B[k]={p:o.price,bk:b.title||b.key};})));
+  return B;
+}
+function arbOf(e){const B=e.best;if(!B||!B.h||!B.a)return null;const ks=B.d?['h','d','a']:['h','a'];const inv=ks.reduce((s,k)=>s+1/B[k].p,0);return inv<1?{inv,ks,pc:(1/inv-1)*100}:null;}
+function upsert(o){ // o: {id,sport,comp,home,away,start,odds?,score?,completed?}
+  const now=Date.now();let e=LEV[o.id];
+  if(!e)e=LEV[o.id]={id:o.id,hist:[],open:null,openLive:false};
+  Object.assign(e,{sport:o.sport??e.sport,comp:o.comp??e.comp,home:o.home,away:o.away,start:o.start});
+  if(o.score)e.score=o.score; if(o.completed!=null)e.completed=o.completed;
+  if(o.best)e.best=o.best;
+  if(o.odds&&(o.odds.h||o.odds.a)){
+    e.odds=o.odds; const last=e.hist[e.hist.length-1];
+    if(!last||JSON.stringify(last.o)!==JSON.stringify(o.odds))e.hist.push({t:now,o:o.odds});
+    if(!e.open){e.open=o.odds;e.openLive=now>e.start;}
+  }
+}
+function fav(e){if(!e.open||!e.open.h||!e.open.a)return null;return e.open.h<=e.open.a?'h':'a';}
+const isLive=e=>Date.now()>=e.start&&!e.completed;
+
+// --- détection
+function lEval(e){
+  const out=[],f=fav(e);if(!f)return out;if(!isLive(e)){const ab=arbOf(e);if(ab&&L.rules.arb)out.push({type:'arb',k:ab.pc.toFixed(1),txt:`💰 Arbitrage avant-match <b>+${ab.pc.toFixed(2)} %</b> : ${ab.ks.map(k=>`${k==='h'?esc(e.home):k==='a'?esc(e.away):'Nul'} ${e.best[k].p} (${esc(e.best[k].bk)})`).join(' · ')}`});return out;}
+  const o=f==='h'?'a':'h', name=f==='h'?e.home:e.away, oname=f==='h'?e.away:e.home, op=e.open[f];
+  const s=e.score, sc=s?`${s.h}-${s.a}`:'';
+  if(op<=L.seuil&&s){
+    if(L.rules.mene&&s[f]<s[o])out.push({type:'mene',k:sc,txt:`🔻 Favori mené : <b>${esc(name)}</b> (cote départ ${op}) perd ${s[f]}-${s[o]} contre ${esc(oname)}`});
+    const mins=(Date.now()-e.start)/6e4;
+    if(L.rules.nul&&s[f]===s[o]&&(s.h+s.a>0||mins>=30))out.push({type:'nul',k:sc,txt:`🤝 Favori accroché : <b>${esc(name)}</b> (cote départ ${op}) — ${s.h}-${s.a}`});
+  }
+  if(e.odds&&e.odds[f]&&L.rules.envol&&op<=L.seuil&&e.odds[f]>=op*(1+L.vari/100))
+    out.push({type:'envol',k:'',txt:`🚀 Cote du favori <b>${esc(name)}</b> : ${op} → <b>${e.odds[f]}</b> (+${Math.round((e.odds[f]/op-1)*100)} %)`});
+  const ab=arbOf(e);
+  if(ab&&L.rules.arb)out.push({type:'arb',k:ab.pc.toFixed(1),txt:`💰 Arbitrage <b>+${ab.pc.toFixed(2)} %</b> : ${ab.ks.map(k=>`${k==='h'?esc(e.home):k==='a'?esc(e.away):'Nul'} ${e.best[k].p} (${esc(e.best[k].bk)})`).join(' · ')}`});
+  const oo=e.open[o];
+  if(e.odds&&e.odds[o]&&L.rules.chute&&e.odds[o]<=oo*(1-L.vari/100))
+    out.push({type:'chute',k:'',txt:`📉 Cote de l'outsider <b>${esc(oname)}</b> : ${oo} → <b>${e.odds[o]}</b> (${Math.round((e.odds[o]/oo-1)*100)} %)`});
+  return out;
+}
+function lEvalAll(silent){
+  Object.values(LEV).forEach(e=>{e.sits=lEval(e);e.sits.forEach(s=>{const k=`${e.id}|${s.type}|${s.k}`;if(lSeen.has(k))return;lSeen.add(k);
+    lAlerts.unshift({t:Date.now(),id:e.id,type:s.type,txt:s.txt});if(!silent)notify(e,s);});});
+  lAlerts=lAlerts.slice(0,50);
+}
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(c.currentTime+.25);}catch(e){}}
+function notify(e,s){
+  if(L.sound)beep();
+  if(L.notif&&'Notification' in window&&Notification.permission==='granted'){try{new Notification('Alerte pari live',{body:s.txt.replace(/<[^>]+>/g,'')});}catch(_){}}
+}
+
+// --- rendu
+function spark(e){
+  const f=fav(e);if(!f||e.hist.length<2)return '';
+  const v=e.hist.map(h=>h.o[f]).filter(Boolean);if(v.length<2)return '';
+  const mn=Math.min(...v),mx=Math.max(...v),r=(mx-mn)||1;
+  const pts=v.map((x,i)=>`${(i/(v.length-1)*80).toFixed(1)},${(22-(x-mn)/r*20).toFixed(1)}`).join(' ');
+  const up=v[v.length-1]>v[0];
+  return `<svg width="80" height="24" viewBox="0 0 80 24"><polyline fill="none" stroke="var(${up?'--loss':'--win'})" stroke-width="2" points="${pts}"/></svg>`;
+}
+function oc(e,k){
+  const v=e.odds&&e.odds[k];if(!v)return '<span class="oddcell sub">—</span>';
+  const o=e.open&&e.open[k];let ar='';if(o&&o!==v)ar=v>o?' <span class="trend-up">↑</span>':' <span class="trend-down">↓</span>';
+  return `<span class="oddcell ${fav(e)===k?'fav':''}" title="départ : ${o||'?'}">${v}${ar}</span>`;
+}
+function lRender(){
+  const ev=Object.values(LEV).filter(e=>$('l-show').value==='all'?!e.completed:isLive(e)).sort((a,b)=>(b.sits||[]).length-(a.sits||[]).length||a.start-b.start);
+  let h='<thead><tr><th>Statut</th><th>Match</th><th class="num">Score</th><th class="num">1</th><th class="num">N</th><th class="num">2</th><th>Cote favori</th><th>Situation</th><th></th></tr></thead><tbody>';
+  if(!ev.length)h+=`<tr><td colspan="9" class="empty">${lTimer?'Aucun match en direct pour le moment dans les compétitions choisies.':'Clique sur ▶️ Démarrer (ou 🎮 Mode démo pour essayer).'}</td></tr>`;
+  for(const e of ev){
+    const live=isLive(e), s=e.score;
+    h+=`<tr class="${(e.sits||[]).length?'fav':''}"><td>${live?'<span class="live-dot"></span>Live '+Math.max(0,Math.floor((Date.now()-e.start)/6e4))+"'":new Date(e.start).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})}</td>
+      <td class="desc"><b>${esc(e.home)}</b> – <b>${esc(e.away)}</b><div class="sub">${esc(e.comp||'')}${e.openLive?' · cote de départ relevée en live':''}</div></td>
+      <td class="num scorebox">${s?s.h+' - '+s.a:'—'}</td><td class="num">${oc(e,'h')}</td><td class="num">${oc(e,'d')}</td><td class="num">${oc(e,'a')}</td>
+      <td>${spark(e)}</td><td>${(e.sits||[]).map(x=>`<span class="pill s-${x.type==='arb'?'gagne':x.type==='mene'?'perdu':x.type==='nul'?'encours':'rembourse'}">${{arb:'💰 Arbitrage',mene:'🔻 Favori mené',nul:'🤝 Favori accroché',envol:'🚀 Cote s\'envole',chute:'📉 Outsider chute'}[x.type]}</span>`).join(' ')||'<span class="sub">—</span>'}</td>
+      <td><button class="btn small" data-lbet="${esc(e.id)}">🎟️ Parier</button></td></tr>`;
+  }
+  $('l-table').innerHTML=h+'</tbody>';
+  $('l-alerts').innerHTML=lAlerts.length?lAlerts.map(a=>`<div class="alert ${a.type}"><div><span class="sub">${new Date(a.t).toLocaleTimeString('fr-FR')}</span> · ${a.txt}</div>${a.type==='arb'?`<button class="btn small" data-larb="${esc(a.id)}">🧮 Calculer les mises</button>`:`<button class="btn small" data-lbet="${esc(a.id)}" data-ltype="${a.type}">🎟️ Parier</button>`}</div>`).join(''):'<p class="empty">Aucune alerte pour l\'instant. Elles apparaîtront ici dès qu\'une situation est détectée.</p>';
+}
+$('l-show').onchange=lRender;
+$('l-clear').onclick=()=>{lAlerts=[];lRender();};
+document.getElementById('liveView').addEventListener('click',ev=>{
+  const ar=ev.target.closest('[data-larb]');if(ar){const e=LEV[ar.dataset.larb];if(!e||!e.best)return;const ks=e.best.d?['h','d','a']:['h','a'];
+    document.querySelector('.tab[data-view="calc"]').click();$('ca-n').value=ks.length;caRows(ks.map(k=>[k==='h'?e.home:k==='a'?e.away:'Nul',e.best[k].p,e.best[k].bk]));$('c-arb').scrollIntoView({behavior:'smooth'});return;}
+  const b=ev.target.closest('[data-lbet]');if(!b)return;const e=LEV[b.dataset.lbet];if(!e)return;
+  const f=fav(e)||'h', pickSide=b.dataset.ltype==='chute'?(f==='h'?'a':'h'):f;
+  document.querySelector('.tab[data-cat="sport"]').click();$('f-cat').value='sport';toggleCat();
+  $('f-date').value=new Date().toISOString().slice(0,10);$('f-sport').value=e.sport||'Football';$('f-comp').value=e.comp||'';
+  $('f-event').value=`${e.home} - ${e.away}`;$('f-pick').value=(pickSide==='h'?e.home:e.away)+' gagne';$('f-stype').value=isLive(e)?'Live':'Simple';
+  $('f-odd').value=(e.odds&&e.odds[pickSide])||'';$('betForm').scrollIntoView({behavior:'smooth'});$('f-stake').focus();
+});
+
+// --- boucle API
+async function lTick(){
+  try{
+    for(const sk of L.sports){
+      const meta=sportsMeta[sk]||{}, sport=SPORTMAP[meta.group]||(sk.startsWith('soccer')?'Football':sk.startsWith('basketball')?'Basket':sk.startsWith('tennis')?'Tennis':'Autre');
+      const [odds,scores]=await Promise.all([oget(sk+'/odds/','&regions=eu&markets=h2h&oddsFormat=decimal'),oget(sk+'/scores/').catch(()=>[])]);
+      odds.forEach(ev=>upsert({id:ev.id,sport,comp:ev.sport_title||meta.title,home:ev.home_team,away:ev.away_team,start:Date.parse(ev.commence_time),odds:avgOdds(ev),best:bestOdds(ev)}));
+      scores.forEach(s=>{if(!LEV[s.id]&&!s.scores)return;
+        const g=n=>{const x=(s.scores||[]).find(q=>q.name===n);return x?+x.score:null;};
+        const sc=s.scores?{h:g(s.home_team),a:g(s.away_team)}:null;
+        upsert({id:s.id,sport,comp:s.sport_title||meta.title,home:s.home_team,away:s.away_team,start:Date.parse(s.commence_time),score:sc&&sc.h!=null?sc:null,completed:s.completed});});
+    }
+    lSave();lEvalAll();lRender();$('l-last').textContent='Dernière actualisation : '+new Date().toLocaleTimeString('fr-FR');lmsg('');
+  }catch(e){lmsg('⚠️ Erreur de chargement : '+esc(e.message)+'. Vérifie ta clé et ton quota.');}
+}
+function lStop(){clearInterval(lTimer);lTimer=null;$('l-start').textContent='▶️ Démarrer';$('l-demo').textContent='🎮 Mode démo';}
+function lStart(){
+  clearInterval(lTimer);demo=false;Object.keys(LEV).forEach(k=>{if(k.startsWith('demo'))delete LEV[k];});lAlerts=lAlerts.filter(a=>!a.id.startsWith('demo'));
+  if(!L.key){lmsg('Entre ta clé API (gratuite sur the-odds-api.com) ou essaie le 🎮 Mode démo.');return;}
+  if(!L.sports.length){lmsg('Choisis au moins une compétition (bouton « Charger les compétitions »).');return;}
+  lTick();lTimer=setInterval(lTick,L.interval*1000);$('l-start').textContent='⏸️ Arrêter';
+}
+$('l-start').onclick=()=>{if(lTimer&&!demo){lStop();return;}lStop();lStart();};
+// mémorise les cotes de départ (pour garder le favori d'avant-match après un rechargement)
+function lSave(){try{const keep={};Object.values(LEV).forEach(e=>{if(!e.id.startsWith('demo')&&Date.now()-e.start<2*864e5)keep[e.id]={id:e.id,open:e.open,openLive:e.openLive,start:e.start,home:e.home,away:e.away,hist:e.hist.slice(-60)};});localStorage.setItem(KEY+'.live',JSON.stringify(keep));}catch(e){}}
+try{const k=JSON.parse(localStorage.getItem(KEY+'.live'))||{};Object.values(k).forEach(e=>LEV[e.id]=Object.assign({completed:false},e));}catch(e){}
+
+// --- mode démo
+$('l-demo').onclick=()=>{
+  if(demo){lStop();demo=false;return;}
+  lStop();demo=true;LEV={};lAlerts=[];lSeen=new Set();
+  const now=Date.now(), M=[['Paris SG','Toulouse',1.35,5.2,8.5,25],['Real Madrid','Getafe',1.5,4.4,6.5,60],['Lyon','Lens',2.3,3.3,3.1,10],['Arsenal','Brentford',1.6,4.0,5.5,70]];
+  M.forEach((m,i)=>upsert({id:'demo'+i,sport:'Football',comp:'Démo',home:m[0],away:m[1],start:now-m[5]*6e4,odds:{h:m[2],d:m[3],a:m[4]},score:{h:0,a:0}}));Object.values(LEV).forEach(e=>e.openLive=false);
+  const tick=()=>{Object.values(LEV).forEach(e=>{
+    e.start-=4*6e4; const s={...e.score};
+    if(Math.random()<.18){const fav=e.open.h<e.open.a?'h':'a';const r=Math.random();s[r<.55?(fav==='h'?'a':'h'):fav]++;}
+    const diff=s.h-s.a, k=1+Math.random()*.06-.03;
+    const h=Math.max(1.02,+(e.open.h*Math.pow(1.9,-diff)*k).toFixed(2)), a=Math.max(1.02,+(e.open.a*Math.pow(1.9,diff)*k).toFixed(2));
+    const od={h,d:+(e.open.d*(diff?1.6:0.85)).toFixed(2),a},BK=['Winamax','Betclic','Unibet','PMU'],best={};
+    Object.keys(od).forEach(k=>best[k]={p:+(od[k]*(1+Math.random()*0.09)).toFixed(2),bk:BK[Math.floor(Math.random()*4)]});
+    upsert({id:e.id,home:e.home,away:e.away,start:e.start,score:s,odds:od,best});});
+    lEvalAll();lRender();$('l-last').textContent='Démo — chaque actualisation = 4 minutes de match';};
+  tick();lTimer=setInterval(tick,3000);$('l-demo').textContent='⏹️ Arrêter la démo';lmsg('🎮 Mode démo : matchs fictifs pour voir comment fonctionnent les alertes.',true);
+};
+renderSportList();lRender();
+
+// =================== POKER ===================
+state.poker=state.poker||{start:78,sessions:[]};
+const PK=()=>state.poker;
+const isTourn=t=>t!=='Cash game';
+function pkStats(L){
+  const inv=L.reduce((a,s)=>a+(+s.in||0),0),out=L.reduce((a,s)=>a+(+s.out||0),0),T=L.filter(s=>isTourn(s.type)),C=L.filter(s=>!isTourn(s.type));
+  const ch=C.reduce((a,s)=>a+(+s.dur||0),0),cp=C.reduce((a,s)=>a+(+s.out||0)-(+s.in||0),0);
+  return {n:L.length,inv,out,profit:out-inv,roi:inv?(out-inv)/inv:NaN,itm:T.length?T.filter(s=>+s.out>0).length/T.length:NaN,
+    hourly:ch?cp/ch:NaN,hours:L.reduce((a,s)=>a+(+s.dur||0),0),best:L.reduce((m,s)=>Math.max(m,(+s.out||0)-(+s.in||0)),-Infinity)};
+}
+function pokerBank(){return (+PK().start||0)+pkStats(PK().sessions).profit;}
+function renderPoker(){
+  const all=PK().sessions,ft=$('pk-fType').value,L=all.filter(s=>!ft||s.type===ft),s=pkStats(L),bank=pokerBank();
+  const sg=v=>`<span class="${v>=0?'pos':'neg'}">${v>=0?'+':''}${eur(v)}</span>`;
+  $('pk-kpis').innerHTML=[['Bankroll poker',`<span class="${bank>=(+PK().start||0)?'pos':'neg'}">${eur(bank)}</span>`],['Sessions',s.n],['Investi',eur(s.inv)],['Résultat',sg(s.profit)],
+    ['ROI',`<span class="${s.roi>=0?'pos':'neg'}">${pct(s.roi)}</span>`],['ITM tournois',pct(s.itm)],['Cash : €/heure',isFinite(s.hourly)?sg(s.hourly):'—'],['Heures jouées',s.hours?s.hours.toLocaleString('fr-FR')+' h':'—'],
+    ['Paris + poker',eur(bank+(+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit)]].map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  const rows=[...L].sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created);
+  let h='<thead><tr><th>Date</th><th>Format</th><th>Site</th><th>Jeu / Limite</th><th class="num">Investi</th><th class="num">Récupéré</th><th class="num">Résultat</th><th class="num">Durée</th><th>Place</th><th></th></tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="10" class="empty">Aucune session. Ajoute ta première session ci-dessus 👆</td></tr>';
+  for(const x of rows){const p=(+x.out||0)-(+x.in||0);
+    h+=`<tr><td>${new Date(x.date+'T12:00').toLocaleDateString('fr-FR')}</td><td><span class="cat ${isTourn(x.type)?'turf':'sport'}">${isTourn(x.type)?'🏆':'💵'} ${esc(x.type)}</span></td><td>${esc(x.site)}</td>
+    <td class="desc">${esc(x.game)}${x.limit?' · '+esc(x.limit):''}${x.notes?`<div class="sub">📝 ${esc(x.notes)}</div>`:''}</td><td class="num">${eur(+x.in)}</td><td class="num">${eur(+x.out)}</td><td class="num ${p>0?'pos':p<0?'neg':''}">${p>=0?'+':''}${eur(p)}</td>
+    <td class="num">${x.dur?x.dur+' h':'—'}</td><td>${x.place?x.place+(x.field?' / '+x.field:''):'—'}</td><td><button class="btn small" data-pkedit="${x.id}">✏️</button> <button class="btn small danger" data-pkdel="${x.id}">🗑️</button></td></tr>`;}
+  $('pk-table').innerHTML=h+'</tbody>';
+  const g={};L.forEach(x=>(g[x.type]=g[x.type]||[]).push(x));
+  let b='<thead><tr><th>Format</th><th class="num">Sessions</th><th class="num">Investi</th><th class="num">Résultat</th><th class="num">ROI</th></tr></thead><tbody>';
+  const E=Object.entries(g);if(!E.length)b+='<tr><td colspan="5" class="empty">Pas encore de données</td></tr>';
+  E.forEach(([k,v])=>{const z=pkStats(v);b+=`<tr><td>${esc(k)}</td><td class="num">${z.n}</td><td class="num">${eur(z.inv)}</td><td class="num">${sg(z.profit)}</td><td class="num">${pct(z.roi)}</td></tr>`;});
+  $('pk-break').innerHTML=b+'</tbody>';
+  const srt=[...all].sort((a,b)=>a.date.localeCompare(b.date)||a.created-b.created);let c=+PK().start||0;
+  lineChart($('pk-chart'),[c,...srt.map(x=>c+=(+x.out||0)-(+x.in||0))],+PK().start||0,`${srt.length} sessions`);
+}
+function lineChart(cv,pts,base,label){
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;if(!w)return;cv.width=w*dpr;cv.height=h*dpr;const x=cv.getContext('2d');x.scale(dpr,dpr);
+  const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();x.font='12px system-ui';x.fillStyle=col('--muted');
+  if(pts.length<2){x.textAlign='center';x.fillText('Le graphique apparaîtra après ta première session',w/2,h/2);return;}
+  const mn=Math.min(base,...pts),mx=Math.max(base,...pts),r=(mx-mn)||1,L=56,R=10,T=10,B=20,X=i=>L+(w-L-R)*i/(pts.length-1),Y=v=>T+(h-T-B)*(1-(v-mn)/r);
+  x.strokeStyle=col('--border');x.textAlign='right';x.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=mn+r*i/4;x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();x.fillText(Math.round(v)+' €',L-6,Y(v));}
+  x.strokeStyle=col('--muted');x.setLineDash([4,4]);x.beginPath();x.moveTo(L,Y(base));x.lineTo(w-R,Y(base));x.stroke();x.setLineDash([]);
+  x.strokeStyle=pts[pts.length-1]>=base?col('--win'):col('--loss');x.lineWidth=2.5;x.beginPath();pts.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));x.stroke();
+  x.textAlign='left';x.textBaseline='alphabetic';x.fillStyle=col('--muted');x.fillText(label,L,h-4);
+}
+const PKF=['date','type','site','game','limit','in','out','dur','place','field','notes'];
+function pkReset(){$('pk-form').reset();$('pk-id').value='';$('pk-date').value=new Date().toISOString().slice(0,10);$('pk-formTitle').textContent='➕ Nouvelle session de poker';$('pk-save').textContent='Enregistrer';$('pk-cancel').classList.add('hidden');pkToggle();}
+function pkToggle(){document.querySelectorAll('.pk-tourn').forEach(e=>e.classList.toggle('hidden',!isTourn($('pk-type').value)));}
+$('pk-type').onchange=pkToggle;$('pk-cancel').onclick=pkReset;$('pk-fType').onchange=renderPoker;
+$('pk-start').value=PK().start;$('pk-start').oninput=()=>{PK().start=+$('pk-start').value||0;save();renderPoker();};
+$('pk-form').onsubmit=e=>{e.preventDefault();const id=$('pk-id').value,s={};PKF.forEach(k=>s[k]=$('pk-'+k).value.trim());
+  if(id){const i=PK().sessions.findIndex(x=>x.id===id);PK().sessions[i]={...PK().sessions[i],...s};}else PK().sessions.push({...s,id:'pk'+Date.now().toString(36),created:Date.now()});
+  save();pkReset();renderPoker();};
+$('pk-table').onclick=e=>{const t=e.target.closest('button');if(!t)return;const x=PK().sessions.find(s=>s.id===(t.dataset.pkedit||t.dataset.pkdel));if(!x)return;
+  if(t.dataset.pkdel){if(confirm('Supprimer cette session ?')){PK().sessions=PK().sessions.filter(s=>s!==x);save();renderPoker();}}
+  else{PKF.forEach(k=>$('pk-'+k).value=x[k]??'');$('pk-id').value=x.id;pkToggle();$('pk-formTitle').textContent='✏️ Modifier la session';$('pk-save').textContent='Mettre à jour';$('pk-cancel').classList.remove('hidden');$('pk-form').scrollIntoView({behavior:'smooth'});}};
+pkReset();
+
+// --- pronos du jour (turf)
+function analyseRace(r){
+  const P=r.partants.filter(p=>!p.np&&+p.cote>0);if(P.length<5)return null;
+  const inv=P.reduce((a,p)=>a+1/p.cote,0),maxp=Math.max(...P.map(p=>1/p.cote/inv));
+  const first=r.snaps[0]&&r.snaps[0].c||{};
+  const H=P.map(p=>{const pr=1/p.cote/inv,f=formScore(p.mus),runs=parseMus(p.mus).slice(0,5);
+    return {p,pr,f,runs,score:0.55*(pr/maxp)+0.45*((f==null?4:f)/10),open:first[p.num]};}).sort((a,b)=>b.score-a.score);
+  const byCote=[...H].sort((a,b)=>a.p.cote-b.p.cote);H.forEach(h=>h.coteRank=byCote.indexOf(h)+1);
+  const top=H[0],gap=top.score-H[1].score;
+  const conf=Math.max(0,Math.min(100,Math.round(40+gap*180+(top.coteRank===1?12:0)+((top.f||0)>=7?10:0)-(P.length>14?8:0))));
+  const value=H.filter(h=>h.f!=null&&h.f>=6.5&&h.p.cote>=7&&h!==top).sort((a,b)=>b.f-a.f)[0]||null;
+  return {r,H,top,conf,value,n:P.length};
+}
+function reasons(h){
+  const R=[],wins=h.runs.filter(x=>x.p==='1').length,plc=h.runs.filter(x=>/[123]/.test(x.p)).length,bad=h.runs.filter(x=>/[DATR]/.test(x.p)).length;
+  if(h.f!=null)R.push(`Forme ${h.f}/10 sur ses ${h.runs.length} dernières courses (${wins} victoire${wins>1?'s':''}, ${plc} fois dans les 3)`);
+  R.push(h.coteRank===1?`Favori du marché : cote ${h.p.cote}, environ ${Math.round(h.pr*100)} % de chances selon les cotes`:`${h.coteRank}e choix du marché (cote ${h.p.cote}, environ ${Math.round(h.pr*100)} % de chances)`);
+  if(h.open&&h.p.cote<h.open*0.9)R.push(`Cote en baisse ${h.open} → ${h.p.cote} : il est de plus en plus joué`);
+  if(h.open&&h.p.cote>h.open*1.15)R.push(`⚠️ Cote en hausse ${h.open} → ${h.p.cote} : le marché y croit moins`);
+  if(bad)R.push(`⚠️ ${bad} faute${bad>1?'s':''} ou disqualification${bad>1?'s':''} récente${bad>1?'s':''}`);
+  if(isFav(h.p.nom))R.push('⭐ Dans tes chevaux favoris');
+  return R;
+}
+async function genPronos(){
+  const date=$('pr-date').value,box=$('pr-msg');$('pr-out').innerHTML='';
+  try{await loadDay(date,box,false);state.pronos={date,t:Date.now()};save();renderPronos();}
+  catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+'). Les pronos ont besoin du chargement automatique.</div>';}
+}
+function renderPronos(){
+  const date=$('pr-date').value,A=Object.values(state.races).filter(r=>r.date===date&&r.auto).map(analyseRace).filter(Boolean);
+  if(!A.length){$('pr-out').innerHTML='';return;}
+  const bank=(+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit;
+  const sel=[...A].sort((a,b)=>b.conf-a.conf).slice(0,5).sort((a,b)=>(a.r.heure||0)-(b.r.heure||0));
+  const coup=A.filter(a=>a.value).sort((a,b)=>b.value.f-a.value.f)[0];
+  const card=(a,h,kind)=>{const type=kind==='value'?'Simple placé':a.conf>=70?'Simple gagnant':'Simple placé',pctB=kind==='value'?0.01:a.conf>=70?0.03:0.02;
+    const combo=a.H.slice(0,a.n>=8?4:3).map(x=>x.p.num).join(' - ');
+    return `<div class="alert ${kind==='value'?'envol':a.conf>=70?'':'nul'}" style="align-items:flex-start">
+      <div style="min-width:0;flex:1">
+        <div><span class="sub">${a.r.heure?new Date(a.r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+' · ':''}R${a.r.R}C${a.r.C} ${esc(a.r.hippo)} · ${esc(a.r.libelle)} · ${a.n} partants</span></div>
+        <div style="font-size:16px;margin:4px 0">${kind==='value'?'💎 Coup de poker : ':'👉 '}<b>N°${h.p.num} ${esc(h.p.nom)}</b> en <b>${type}</b> <span class="pill ${a.conf>=70?'s-gagne':'s-encours'}">${kind==='value'?'risqué, grosse cote':'indice '+'★'.repeat(Math.max(1,Math.round(a.conf/20)))+'☆'.repeat(5-Math.max(1,Math.round(a.conf/20)))}</span></div>
+        <ul style="margin:4px 0 4px 18px;padding:0">${reasons(h).map(x=>`<li>${x}</li>`).join('')}</ul>
+        <div class="sub">Mise conseillée : ${Math.round(pctB*100)} % de ta bankroll ≈ <b>${eur(Math.max(0.5,Math.round(bank*pctB*2)/2))}</b>${kind==='value'?'':` · Pour un couplé / trio : <b>${combo}</b>`}</div>
+      </div>
+      <div class="actions" style="margin:0"><button class="btn small" data-propen="${esc(a.r.key)}">🔎 Analyser</button><button class="btn small primary" data-prbet="${esc(a.r.key)}" data-num="${h.p.num}" data-type="${type}" data-stake="${Math.max(0.5,Math.round(bank*pctB*2)/2)}">🎟️ Parier</button></div></div>`;};
+  $('pr-out').innerHTML=`<p class="sub">${A.length} courses analysées. Les 5 courses où un cheval ressort le plus nettement (★ = à quel point il domine les autres sur le papier, pas une probabilité de gagner) :</p>`+sel.map(a=>card(a,a.top,'base')).join('')+(coup?card(coup,coup.value,'value'):'');
+}
+$('pr-date').value=new Date().toISOString().slice(0,10);
+$('pr-go').onclick=genPronos;$('pr-date').onchange=renderPronos;
+$('pr-out').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.propen)return openRace(t.dataset.propen);
+  const r=state.races[t.dataset.prbet],p=r&&r.partants.find(q=>q.num==t.dataset.num);if(!p)return;
+  document.querySelector('.tab[data-cat="turf"]').click();$('f-cat').value='turf';toggleCat();
+  $('f-date').value=r.date;$('f-hippo').value=r.hippo;$('f-race').value=`R${r.R}C${r.C} — ${r.libelle}`;if([...$('f-disc').options].some(o=>o.value===r.disc))$('f-disc').value=r.disc;
+  $('f-ttype').value=t.dataset.type;$('f-horses').value=p.num;$('f-odd').value=t.dataset.type==='Simple gagnant'?p.cote:'';$('f-stake').value=t.dataset.stake;
+  $('betForm').scrollIntoView({behavior:'smooth'});});
+renderPronos();
+
+// =================== CALCULATEURS ===================
+const nums=s=>String(s||'').replace(/,/g,'.').split(/[\s;]+/).map(Number).filter(x=>x>1);
+const res=(id,html)=>{$(id).innerHTML=`<div class="msg ok" style="color:var(--text);background:var(--bg);border:1px solid var(--border)">${html}</div>`;};
+const bad=(id,t)=>{$(id).innerHTML=`<div class="msg">${t}</div>`;};
+function caRows(pref){
+  const n=+$('ca-n').value,lab=n===3?['1 (domicile)','N (nul)','2 (extérieur)']:['Issue A','Issue B'];
+  const old=[...document.querySelectorAll('#ca-rows tbody tr')].map(r=>[...r.querySelectorAll('input')].map(i=>i.value));
+  let h='<thead><tr><th>Issue</th><th class="num">Cote</th><th>Bookmaker</th><th class="num">Mise</th><th class="num">Retour</th></tr></thead><tbody>';
+  for(let i=0;i<n;i++){const v=(pref&&pref[i])||old[i]||[lab[i],['2.10','2.05','4.2'][i]||'',''];
+    h+=`<tr><td><input value="${esc(v[0])}" style="width:130px"></td><td class="num"><input class="cotein" type="number" step="0.01" value="${esc(v[1])}"></td><td><input value="${esc(v[2])}" style="width:110px" placeholder="Winamax…"></td><td class="num" data-st></td><td class="num" data-rt></td></tr>`;}
+  $('ca-rows').innerHTML=h+'</tbody>';calcArb();
+}
+function calcArb(){
+  const R=[...document.querySelectorAll('#ca-rows tbody tr')],o=R.map(r=>+r.querySelectorAll('input')[1].value),T=+$('ca-total').value||0;
+  if(o.some(x=>!(x>1))){bad('ca-res','Saisis toutes les cotes.');return;}
+  const inv=o.reduce((a,x)=>a+1/x,0),rd=$('ca-round').checked;
+  const st=o.map(x=>{const v=T*(1/x)/inv;return rd?Math.round(v*10)/10:Math.round(v*100)/100;}),tot=st.reduce((a,b)=>a+b,0),ret=o.map((x,i)=>x*st[i]);
+  R.forEach((r,i)=>{r.querySelector('[data-st]').textContent=eur(st[i]);r.querySelector('[data-rt]').textContent=eur(ret[i]);});
+  const minP=Math.min(...ret)-tot,pc=(1/inv-1)*100;
+  if(inv<1)res('ca-res',`✅ <b>Arbitrage possible : +${pc.toFixed(2)} %</b> garanti.<br>Mise totale ${eur(tot)} → bénéfice minimum <b class="pos">${eur(minP)}</b> quelle que soit l'issue.<br><span class="sub">Somme des probabilités : ${(inv*100).toFixed(2)} %. Place les paris vite : les cotes bougent, surtout en live.</span>`);
+  else bad('ca-res',`❌ Pas d'arbitrage : somme des probabilités ${(inv*100).toFixed(2)} % (il faut moins de 100 %). Tu perdrais ${eur(-minP)} au pire.`);
+}
+$('ca-n').onchange=()=>caRows();['ca-total','ca-round'].forEach(i=>$(i).addEventListener('input',calcArb));$('ca-rows').addEventListener('input',calcArb);
+function calcHedge(){
+  const S=+$('ch-s').value,A=+$('ch-a').value,B=[+$('ch-b1').value,+$('ch-b2').value].filter(x=>x>1);
+  if(!(S>0&&A>1&&B.length)){bad('ch-res','Remplis la mise, la cote initiale et au moins une cote live.');return;}
+  const H=B.map(b=>S*A/b),HT=H.reduce((a,b)=>a+b,0),prof=S*A-S-HT;
+  res('ch-res',`Mise${H.length>1?'s':''} de couverture : ${H.map((h,i)=>`<b>${eur(h)}</b> à ${B[i]}`).join(' + ')}<br>Résultat garanti : <b class="${prof>=0?'pos':'neg'}">${prof>=0?'+':''}${eur(prof)}</b> quoi qu'il arrive.
+    <br><span class="sub">${prof>=0?'Tu sécurises un gain.':'Couvrir maintenant limite la perte à ce montant (sinon tu risques '+eur(S)+').'} Sans couverture : +${eur(S*A-S)} si ton pari passe, -${eur(S)} sinon.</span>`);
+}
+['ch-s','ch-a','ch-b1','ch-b2'].forEach(i=>$(i).addEventListener('input',calcHedge));
+function calcDutch(){
+  const o=nums($('cd-odds').value),T=+$('cd-total').value;if(!o.length||!(T>0)){bad('cd-res','Saisis au moins une cote et une mise.');return;}
+  const inv=o.reduce((a,x)=>a+1/x,0),st=o.map(x=>T/x/inv),g=T/inv;
+  res('cd-res',`${o.map((x,i)=>`Cote ${x} → <b>${eur(st[i])}</b>`).join('<br>')}<br>Si l'un d'eux gagne : retour <b>${eur(g)}</b>, soit <b class="${g>=T?'pos':'neg'}">${g>=T?'+':''}${eur(g-T)}</b>.<br><span class="sub">Ça revient à jouer une seule cote de ${(1/inv).toFixed(2)}. ${inv>=1?'⚠️ Avec ces cotes, tu perds même si un des chevaux gagne : retire-en.':''}</span>`);
+}
+['cd-odds','cd-total'].forEach(i=>$(i).addEventListener('input',calcDutch));
+function calcKelly(){
+  const o=+$('ck-odd').value,p=(+$('ck-p').value)/100,B=+$('ck-bank').value||0;if(!(o>1&&p>0&&p<1)){bad('ck-res','Saisis une cote et une proba entre 1 et 99 %.');return;}
+  const ev=p*o-1,k=(p*(o-1)-(1-p))/(o-1),q=Math.min(Math.max(k/4,0),0.05);
+  res('ck-res',`Proba selon la cote : <b>${(100/o).toFixed(1)} %</b> · ta proba : <b>${(p*100).toFixed(1)} %</b><br>Espérance : <b class="${ev>0?'pos':'neg'}">${ev>0?'+':''}${(ev*100).toFixed(1)} %</b> par euro misé ${ev>0?'(value bet ✅)':'(pas de value ❌, ne joue pas)'}<br>${ev>0?`Mise conseillée (¼ Kelly, max 5 %) : <b>${(q*100).toFixed(1)} %</b> de ta bankroll = <b>${eur(B*q)}</b>`:''}
+    <br><span class="sub">Ce calcul ne vaut que si ta proba est juste. Si tu la surestimes, la value n'existe pas.</span>`);
+}
+['ck-odd','ck-p','ck-bank'].forEach(i=>$(i).addEventListener('input',calcKelly));
+function gcd(a,b){return b?gcd(b,a%b):a;}
+function conv(from){
+  let d;const v=$('cv-'+from).value.replace(',','.').trim();
+  if(from==='dec')d=+v;else if(from==='frac'){const m=v.match(/^(\d+)\s*\/\s*(\d+)$/);d=m?1+m[1]/m[2]:NaN;}else if(from==='us'){const x=+v;d=x>0?1+x/100:x<0?1+100/-x:NaN;}else d=100/+v;
+  if(!(d>1))return;
+  const n=Math.round((d-1)*100),g=gcd(n,100);
+  if(from!=='dec')$('cv-dec').value=d.toFixed(2);if(from!=='frac')$('cv-frac').value=`${n/g}/${100/g}`;
+  if(from!=='us')$('cv-us').value=d>=2?'+'+Math.round((d-1)*100):Math.round(-100/(d-1));if(from!=='p')$('cv-p').value=(100/d).toFixed(1);
+}
+['dec','frac','us','p'].forEach(k=>$('cv-'+k).addEventListener('input',()=>conv(k)));
+function calcMargin(){const o=nums($('cm-odds').value);if(o.length<2){bad('cm-res','Saisis au moins 2 cotes.');return;}
+  const inv=o.reduce((a,x)=>a+1/x,0);
+  res('cm-res',`Marge du bookmaker : <b>${((inv-1)*100).toFixed(2)} %</b>${inv<1?' (négative : arbitrage possible !)':''}<br>Cotes « justes » sans marge : ${o.map(x=>(x*inv).toFixed(2)).join(' · ')}<br><span class="sub">Plus la marge est basse, plus les cotes sont bonnes pour toi. Compare les bookmakers sur le même match.</span>`);}
+$('cm-odds').addEventListener('input',calcMargin);
+function calcComb(){const o=nums($('cc-odds').value),S=+$('cc-stake').value;if(!o.length){bad('cc-res','Saisis au moins une cote.');return;}
+  const c=o.reduce((a,x)=>a*x,1),p=o.reduce((a,x)=>a/x,1);
+  res('cc-res',`Cote totale : <b>${c.toFixed(2)}</b> · gain potentiel <b>${eur(S*c)}</b> (bénéfice ${eur(S*c-S)})<br><span class="sub">Chance que tout passe (d'après les cotes) : ${(p*100).toFixed(1)} %. Chaque sélection ajoutée multiplie aussi la marge du bookmaker.</span>`);}
+['cc-odds','cc-stake'].forEach(i=>$(i).addEventListener('input',calcComb));
+function calcAll(){caRows();calcHedge();calcDutch();if(!$('ck-bank').value)$('ck-bank').value=Math.round((+state.bankroll||0)+(+state.report||0)+stats(state.bets).profit);calcKelly();conv('dec');calcMargin();calcComb();}
+calcAll();
+
+// =================== TABLEAU TURF ===================
+function raceMeta(race,r,c){
+  race.heure=c.heureDepart||race.heure;race.prix=c.montantPrix||race.prix||0;race.pays=(r.pays&&r.pays.code)||race.pays||'';
+  race.quinte=(c.paris||[]).some(x=>/QUINTE/.test(x.typePari||''))||/QUINTE/.test(c.categorieParticularite||'')||!!race.quinte;
+  if(Array.isArray(c.ordreArrivee)&&c.ordreArrivee.length)race.arrivee=c.ordreArrivee.flat().map(Number).filter(Boolean).slice(0,5);
+}
+async function loadDay(date,box,refreshOnlyUpcoming){
+  box.innerHTML='<div class="msg ok">Chargement du programme…</div>';
+  const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];const jobs=[];
+  Rs.forEach(r=>(r.courses||[]).forEach(c=>{const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,old=state.races[key];
+    if(old)raceMeta(old,r,c);
+    if(refreshOnlyUpcoming&&old&&old.partants&&c.heureDepart&&c.heureDepart<Date.now()-10*6e4)return;jobs.push({r,c});}));
+  let done=0;const total=jobs.length;
+  const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();try{
+    const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
+    raceMeta(race,r,c);race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);race.snaps=race.snaps.slice(-40);recordFavs(race);state.races[key]=race;}catch(e){}
+    box.innerHTML=`<div class="msg ok">Chargement des courses… ${++done}/${total}</div>`;}};
+  await Promise.all([1,2,3,4,5,6].map(worker));
+  const lim=new Date(Date.now()-21*864e5).toISOString().slice(0,10);
+  Object.keys(state.races).forEach(k=>{const r=state.races[k];if(r.date<lim&&!(r.partants||[]).some(p=>isFav(p.nom)))delete state.races[k];});
+  save();fillSaved();box.innerHTML='';
+}
+function refOf(r,p){const f=r.snaps[0]&&r.snaps[0].c[p.num];return p.ref||f||null;}
+function varOf(r,p){const o=refOf(r,p);return o&&p.cote&&!p.np?(p.cote-o)/o:null;}
+function tbRaces(){
+  const date=$('tb-date').value;
+  return Object.values(state.races).filter(r=>r.date===date&&r.auto&&r.partants).sort((a,b)=>(a.heure||0)-(b.heure||0)||a.R-b.R||a.C-b.C);
+}
+function renderBoard(){
+  const all=tbRaces(),reu=$('tb-reu').value,disc=$('tb-disc').value,up=$('tb-when').value==='up',onlyFav=$('tb-fav').checked,onlyMv=$('tb-moves').checked;
+  const R=[...new Set(all.map(r=>r.R))];const cur_=reu;
+  $('tb-reu').innerHTML='<option value="">Toutes les réunions</option>'+R.map(n=>{const r=all.find(x=>x.R===n);return `<option value="${n}" ${String(n)===cur_?'selected':''}>R${n} ${esc(r.hippo)}</option>`;}).join('');
+  const list=all.filter(r=>(!reu||String(r.R)===reu)&&(!disc||r.disc===disc)&&(!up||!r.heure||r.heure>Date.now()-5*6e4)&&(!onlyFav||r.partants.some(p=>isFav(p.nom)))&&(!onlyMv||r.partants.some(p=>(varOf(r,p)||0)<=-0.2)));
+  // mouvements
+  const mv=[];all.filter(r=>!up||!r.heure||r.heure>Date.now()-5*6e4).forEach(r=>r.partants.forEach(p=>{const v=varOf(r,p);if(v!=null&&v<=-0.1)mv.push({r,p,v});}));
+  mv.sort((a,b)=>a.v-b.v);
+  let m='<thead><tr><th>Heure</th><th>Course</th><th class="num">N°</th><th>Cheval</th><th class="num">Réf.</th><th class="num">Actuelle</th><th class="num">Variation</th><th class="num">Forme</th><th></th></tr></thead><tbody>';
+  if(!mv.length)m+=`<tr><td colspan="9" class="empty">${all.length?'Pas de grosse baisse pour le moment. Actualise plus tard.':'Charge le programme pour voir les mouvements.'}</td></tr>`;
+  mv.slice(0,10).forEach(({r,p,v})=>{const sc=formScore(p.mus);m+=`<tr class="${isFav(p.nom)?'fav':''}"><td>${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</td><td>R${r.R}C${r.C} <span class="sub">${esc(r.hippo)}</span></td><td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${isFav(p.nom)?' ⭐':''}</td><td class="num">${refOf(r,p)}</td><td class="num"><b>${p.cote}</b></td><td class="num trend-down">▼ ${Math.round(-v*100)} %</td><td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td><button class="btn small" data-tbopen="${esc(r.key)}">🔎</button></td></tr>`;});
+  $('tb-moves-t').innerHTML=m+'</tbody>';
+  const FV=[];all.forEach(r=>r.partants.forEach(p=>{if(isFav(p.nom))FV.push({r,p});}));
+  let fh='<thead><tr><th>Heure</th><th>Course</th><th class="num">N°</th><th>Cheval</th><th>Jockey / Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Réf.</th><th class="num">Cote</th><th class="num">Var.</th><th>Changements</th><th></th></tr></thead><tbody>';
+  const nf=Object.keys(state.favs).length;
+  if(!FV.length)fh+=`<tr><td colspan="12" class="empty">${!nf?'Tu n\'as pas encore de favoris : ajoute-les dans l\'onglet Analyse course.':all.length?`Aucun de tes ${nf} favoris ne court ce jour-là.`:'Charge le programme pour voir si tes favoris courent.'}</td></tr>`;
+  FV.forEach(({r,p})=>{const v=varOf(r,p),sc=formScore(p.mus),f=state.favs[fkey(p.nom)],ch=favChanges(f,r.key);
+    fh+=`<tr class="${p.np?'np':''}"><td>${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</td><td>R${r.R}C${r.C} <span class="sub">${esc(r.hippo)} · ${esc(r.disc)}</span></td><td class="num"><b>${p.num}</b></td>
+      <td><b>⭐ ${esc(f.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${f.note?`<div class="sub">📝 ${esc(f.note)}</div>`:''}</td><td>${esc(p.jockey)}<div class="sub">${esc(p.entr)}</div></td><td>${musHtml(p.mus)}</td>
+      <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${refOf(r,p)||'—'}</td><td class="num"><b>${p.cote&&!p.np?p.cote:'—'}</b></td>
+      <td class="num">${v==null||Math.abs(v)<0.02?'—':`<span class="${v>0?'trend-up':'trend-down'}">${v>0?'▲':'▼'} ${Math.round(Math.abs(v)*100)} %</span>`}</td>
+      <td class="desc">${!ch||ch.first?'<span class="sub">🆕 Première course suivie</span>':ch.list.length?ch.list.join('<br>'):'<span class="pos">✅ Rien n\'a changé</span>'}</td>
+      <td><button class="btn small" data-tbopen="${esc(r.key)}">🔎</button></td></tr>`;});
+  $('tb-favs').innerHTML=fh+'</tbody>';
+  // tableau par course
+  if(!list.length){$('tb-board').innerHTML=`<div class="card"><p class="empty">${all.length?'Aucune course ne correspond aux filtres.':'Clique sur « Charger / actualiser les cotes » pour remplir le tableau avec toutes les courses du jour.'}</p></div>`;return;}
+  let openN=0;
+  $('tb-board').innerHTML=list.map(r=>{
+    const A=analyseRace(r),pick=A?A.top.p.num:null,val=A&&A.value?A.value.p.num:null;
+    const P=r.partants.filter(p=>!p.np&&+p.cote>0),inv=P.reduce((a,p)=>a+1/p.cote,0),rank={};[...P].sort((a,b)=>a.cote-b.cote).forEach((p,i)=>rank[p.num]=i+1);
+    const maxP=Math.max(...P.map(p=>1/p.cote/inv),0.01),started=r.heure&&r.heure<Date.now(),hasFav=r.partants.some(p=>isFav(p.nom));
+    const open=!started&&openN++<3||hasFav;
+    let t='<table><thead><tr><th class="num">N°</th><th>Cheval</th><th>Jockey / Driver</th><th>Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Réf.</th><th class="num">Cote</th><th class="num">Var.</th><th class="num">Proba</th><th class="num">Rang</th><th>Signaux</th></tr></thead><tbody>';
+    [...r.partants].sort((a,b)=>a.num-b.num).forEach(p=>{const v=varOf(r,p),sc=formScore(p.mus),pr=p.cote&&!p.np?1/p.cote/inv:null,sig=[];
+      if(p.num===pick)sig.push('<span class="pill s-gagne">🎯 Prono</span>');if(p.num===val)sig.push('<span class="pill s-rembourse">💎 Outsider</span>');
+      if(v!=null&&v<=-0.2)sig.push('<span class="pill s-gagne">🔥 Baisse</span>');if(v!=null&&v>=0.3)sig.push('<span class="pill s-perdu">🧊 Hausse</span>');
+      if(isFav(p.nom))sig.push('<span class="pill s-encours">⭐ Favori</span>');
+      t+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}"><td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}</td><td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
+        <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${refOf(r,p)||'—'}</td><td class="num"><b>${p.cote&&!p.np?p.cote:'—'}</b></td>
+        <td class="num">${v==null||Math.abs(v)<0.02?'—':`<span class="${v>0?'trend-up':'trend-down'}">${v>0?'▲':'▼'} ${Math.round(Math.abs(v)*100)} %</span>`}</td>
+        <td class="num">${pr==null?'—':(pr*100).toFixed(1)+' %<div class="bar" style="width:'+Math.round(pr/maxP*60)+'px;margin-left:auto"></div>'}</td>
+        <td class="num">${rank[p.num]?(rank[p.num]<=3?['🥇','🥈','🥉'][rank[p.num]-1]:rank[p.num]):'—'}</td><td>${sig.join(' ')}</td></tr>`;});
+    return `<details class="card" ${open?'open':''} style="padding:0"><summary style="cursor:pointer;padding:14px 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:baseline">
+      <b style="font-size:16px">${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</b>
+      <b>R${r.R}C${r.C}</b><span>${esc(r.hippo)} · ${esc(r.libelle)}</span><span class="sub">${esc(r.disc)}${r.distance?' · '+r.distance+' m':''} · ${P.length} partants${started?(r.arrivee&&r.arrivee.length?' · 🏁 '+r.arrivee.slice(0,5).join('-'):' · ⏱️ partie'):''}</span>${hasFav?'<span class="pill s-encours">⭐</span>':''}
+      ${A?`<span class="sub" style="margin-left:auto">🎯 Prono : <b>${A.H.slice(0,A.n>=8?4:3).map(x=>x.p.num).join(' - ')}</b></span>`:''}</summary>
+      <div class="tablewrap" style="padding:0 16px 14px">${t}</tbody></table>
+      <div class="actions"><button class="btn small" data-tbopen="${esc(r.key)}">🔎 Analyse détaillée + courbe</button></div></div></details>`;}).join('');
+}
+$('tb-date').value=new Date().toISOString().slice(0,10);
+async function tbLoad(){try{await loadDay($('tb-date').value,$('tb-msg'),true);$('tb-msg').innerHTML=`<div class="msg ok">✅ Cotes à jour (${new Date().toLocaleTimeString('fr-FR')}).</div>`;}catch(e){$('tb-msg').innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';}renderBoard();}
+$('tb-load').onclick=tbLoad;
+let tbTimer=null;$('tb-auto').onchange=()=>{clearInterval(tbTimer);tbTimer=$('tb-auto').checked?setInterval(tbLoad,5*6e4):null;};
+['tb-reu','tb-disc','tb-when','tb-fav','tb-moves','tb-date'].forEach(i=>$(i).addEventListener('change',renderBoard));
+document.getElementById('boardView').addEventListener('click',e=>{const t=e.target.closest('[data-tbopen]');if(!t)return;document.querySelector('.tab[data-view="race"]').click();openRace(t.dataset.tbopen);});
+renderBoard();
+
+// =================== MA PAGE TURF ===================
+state.myAn=state.myAn||{};
+let mpCat='all';
+const CATS={all:'Toutes',plat:'🏇 Plat',trot:'🐎 Trot',obstacle:'🪵 Obstacle',etranger:'🌍 Étranger'};
+function catOf(r){if(r.pays&&r.pays!=='FRA')return 'etranger';return /Trot/.test(r.disc)?'trot':r.disc==='Plat'?'plat':r.disc==='Obstacle'?'obstacle':'plat';}
+const numsOf=s=>String(s||'').split(/[^0-9]+/).map(Number).filter(Boolean);
+function arrOf(r){const a=state.myAn[r.key];return (a&&numsOf(a.arr).length?numsOf(a.arr):r.arrivee)||null;}
+function hit(pr,arr){if(!pr||!pr.length||!arr||!arr.length)return null;const t3=arr.slice(0,3);return {win:pr[0]===arr[0],place:t3.includes(pr[0]),inTop3:pr.slice(0,3).filter(n=>t3.includes(n)).length};}
+function hitHtml(h){if(!h)return '<span class="sub">—</span>';return h.win?'<span class="pill s-gagne">✅ Gagnant</span>':h.place?'<span class="pill s-encours">🥉 Placé</span>':'<span class="pill s-perdu">❌</span>';}
+const appPick=r=>{const A=analyseRace(r);return A?A.H.slice(0,A.n>=8?4:3).map(x=>x.p.num):null;};
+function eurK(n){return n?(n>=1e3?Math.round(n/1e3).toLocaleString('fr-FR')+' k€':n+' €'):'—';}
+function mpRaces(){const d=$('mp-date').value;return Object.values(state.races).filter(r=>r.date===d&&r.auto&&r.R);}
+function raceRow(r,i){
+  const favs=(r.partants||[]).filter(p=>isFav(p.nom)),ap=appPick(r),me=state.myAn[r.key],mp=me?numsOf(me.prono):[],arr=arrOf(r);
+  return `<tr class="${favs.length?'fav':''}"><td>${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</td>
+    <td><b>R${r.R}C${r.C}</b> ${esc(r.hippo)}${r.pays&&r.pays!=='FRA'?` <span class="sub">(${esc(r.pays)})</span>`:''}</td>
+    <td class="desc"><b>${esc(r.libelle)}</b>${r.quinte?' <span class="pill s-encours">Quinté+</span>':''}<div class="sub">${esc(r.disc)}${r.distance?' · '+r.distance+' m':''} · ${(r.partants||[]).filter(p=>!p.np).length} partants</div></td>
+    <td class="num"><b>${eurK(r.prix)}</b></td>
+    <td>${favs.length?favs.map(p=>`⭐ <b>${p.num}</b> ${esc(p.nom)}`).join('<br>'):'<span class="sub">—</span>'}</td>
+    <td class="num">${ap?'<b>'+ap.join(' - ')+'</b>':'—'}${arr?'<div>'+hitHtml(hit(ap,arr))+'</div>':''}</td>
+    <td class="num">${mp.length?'<b>'+mp.join(' - ')+'</b>':'<span class="sub">—</span>'}${arr&&mp.length?'<div>'+hitHtml(hit(mp,arr))+'</div>':''}</td>
+    <td class="num">${arr?'<b>'+arr.slice(0,5).join(' - ')+'</b>':'<span class="sub">—</span>'}${r.rapports?`<div class="sub">${rapHtml(r,true)}</div>`:''}</td>
+    <td style="white-space:nowrap"><button class="btn small" data-mpedit="${esc(r.key)}" title="Mon analyse">✍️</button> <button class="btn small" data-tbopen="${esc(r.key)}" title="Analyse détaillée">🔎</button></td></tr>
+    <tr class="hidden" data-mped="${esc(r.key)}"><td colspan="9">
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+        <label>Mon prono (n° dans l'ordre) <input data-f="prono" value="${esc(me&&me.prono||'')}" placeholder="5 - 3 - 8 - 1"></label>
+        <label>Confiance <select data-f="conf">${['','★','★★','★★★','★★★★','★★★★★'].map(x=>`<option ${me&&me.conf===x?'selected':''}>${x}</option>`).join('')}</select></label>
+        <label>Arrivée (si pas chargée) <input data-f="arr" value="${esc(me&&me.arr||'')}" placeholder="5 - 8 - 3"></label>
+      </div>
+      <label style="margin-top:8px">Mon analyse <textarea data-f="txt" rows="3" placeholder="Terrain, forme, engagement, jockey, ferrure…">${esc(me&&me.txt||'')}</textarea></label>
+      <div class="actions"><button class="btn primary small" data-mpsave="${esc(r.key)}">Enregistrer</button></div></td></tr>`;
+}
+const HEAD='<thead><tr><th>Heure</th><th>Réunion</th><th>Course</th><th class="num">Allocation</th><th>Mes favoris</th><th class="num">Prono appli</th><th class="num">Mon prono</th><th class="num">Arrivée</th><th></th></tr></thead><tbody>';
+function renderMyPage(){
+  const all=mpRaces(),byCat={};all.forEach(r=>(byCat[catOf(r)]=byCat[catOf(r)]||[]).push(r));
+  const favN=all.reduce((a,r)=>a+(r.partants||[]).filter(p=>isFav(p.nom)).length,0),tot=all.reduce((a,r)=>a+(r.prix||0),0);
+  $('mp-kpis').innerHTML=[['Courses',all.length],['Plat',(byCat.plat||[]).length],['Trot',(byCat.trot||[]).length],['Obstacle',(byCat.obstacle||[]).length],['Étranger',(byCat.etranger||[]).length],['Mes favoris engagés',favN],['Allocations du jour',eurK(tot)]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  const top=[...all].sort((a,b)=>(b.quinte-a.quinte)||(b.prix||0)-(a.prix||0)).slice(0,5);
+  $('mp-top').innerHTML=top.length?`<div class="tablewrap"><table>${HEAD}${top.map(raceRow).join('')}</tbody></table></div>`:'<p class="empty">Clique sur « Charger / actualiser » pour voir les courses du jour.</p>';
+  $('mp-cats').innerHTML=Object.entries(CATS).map(([k,l])=>`<button class="tab ${k===mpCat?'active':''}" data-mpcat="${k}">${l} (${k==='all'?all.length:(byCat[k]||[]).length})</button>`).join('');
+  const L=(mpCat==='all'?all:byCat[mpCat]||[]).sort($('mp-sort').value==='prix'?(a,b)=>(b.prix||0)-(a.prix||0)||(a.heure||0)-(b.heure||0):(a,b)=>(a.heure||0)-(b.heure||0));
+  $('mp-list').innerHTML=HEAD+(L.length?L.map(raceRow).join(''):'<tr><td colspan="9" class="empty">Aucune course dans cette catégorie.</td></tr>')+'</tbody>';
+  renderAnalyses();
+}
+function renderAnalyses(){
+  const E=Object.entries(state.myAn).filter(([k,a])=>a.prono||a.txt).map(([k,a])=>({k,a,r:state.races[k]})).sort((x,y)=>(y.a.t||0)-(x.a.t||0));
+  let me=[0,0,0],ap=[0,0,0];
+  E.forEach(({a,r})=>{if(!r)return;const arr=arrOf(r);if(!arr)return;const h=hit(numsOf(a.prono),arr),g=hit(appPick(r),arr);
+    if(h){me[0]++;me[1]+=h.win;me[2]+=h.place;}if(g){ap[0]++;ap[1]+=g.win;ap[2]+=g.place;}});
+  const p=(x,n)=>n?Math.round(x/n*100)+' %':'—';
+  $('mp-score').innerHTML=[['Analyses',E.length],['Courses terminées',me[0]],['Moi : gagnant trouvé',p(me[1],me[0])],['Moi : placé',p(me[2],me[0])],['Appli (mêmes courses) : gagnant',p(ap[1],ap[0])],['Appli (mêmes courses) : placé',p(ap[2],ap[0])]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  let h='<thead><tr><th>Date</th><th>Course</th><th class="num">Mon prono</th><th>Conf.</th><th class="num">Arrivée</th><th>Résultat</th><th>Mon analyse</th><th></th></tr></thead><tbody>';
+  if(!E.length)h+='<tr><td colspan="8" class="empty">Pas encore d\'analyse. Clique sur ✍️ à côté d\'une course.</td></tr>';
+  E.forEach(({k,a,r})=>{const arr=r?arrOf(r):null;h+=`<tr><td>${r?new Date(r.date+'T12:00').toLocaleDateString('fr-FR'):''}</td><td>${r?`R${r.R}C${r.C} ${esc(r.hippo)}<div class="sub">${esc(r.libelle)}</div>`:esc(k)}</td>
+    <td class="num"><b>${esc(numsOf(a.prono).join(' - '))}</b></td><td>${esc(a.conf||'')}</td><td class="num">${arr?arr.slice(0,5).join(' - '):'<span class="sub">à venir</span>'}</td>
+    <td>${arr?hitHtml(hit(numsOf(a.prono),arr)):'—'}</td><td class="desc">${esc(a.txt||'')}</td><td><button class="btn small danger" data-mpdel="${esc(k)}">🗑️</button></td></tr>`;});
+  $('mp-an').innerHTML=h+'</tbody>';
+}
+$('mp-date').value=new Date().toISOString().slice(0,10);
+$('mp-load').onclick=async()=>{try{await loadDay($('mp-date').value,$('mp-msg'),true);$('mp-msg').innerHTML=`<div class="msg ok">✅ À jour (${new Date().toLocaleTimeString('fr-FR')}).</div>`;}catch(e){$('mp-msg').innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';}renderMyPage();};
+['mp-date','mp-sort'].forEach(i=>$(i).addEventListener('change',renderMyPage));
+document.getElementById('mypageView').addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.mpcat){mpCat=t.dataset.mpcat;renderMyPage();return;}
+  if(t.dataset.tbopen){document.querySelector('.tab[data-view="race"]').click();openRace(t.dataset.tbopen);return;}
+  if(t.dataset.mpedit){const row=t.closest('tr').nextElementSibling;row.classList.toggle('hidden');return;}
+  if(t.dataset.mpsave){const box=t.closest('tr'),a={t:Date.now()};box.querySelectorAll('[data-f]').forEach(i=>a[i.dataset.f]=i.value.trim());state.myAn[t.dataset.mpsave]=a;save();renderMyPage();return;}
+  if(t.dataset.mpdel){delete state.myAn[t.dataset.mpdel];save();renderMyPage();}
+});
+renderMyPage();
+
+// =================== STATS & ROI ===================
+const SKEY=KEY+'.stats';
+let ST={dict:{h:[],j:[],e:[],d:[]},days:{},keys:{},rows:[]};
+try{const x=JSON.parse(localStorage.getItem(SKEY));if(x&&x.rows)ST=x;}catch(e){}
+const DIX={h:{},j:{},e:{},d:{}};Object.keys(DIX).forEach(k=>ST.dict[k].forEach((v,i)=>DIX[k][v]=i));
+function di(k,v){v=String(v||'?').trim().toUpperCase()||'?';if(DIX[k][v]==null){DIX[k][v]=ST.dict[k].length;ST.dict[k].push(v);}return DIX[k][v];}
+function stSave(){try{localStorage.setItem(SKEY,JSON.stringify(ST));return true;}catch(e){
+  ST.rows=ST.rows.slice(Math.floor(ST.rows.length/4));try{localStorage.setItem(SKEY,JSON.stringify(ST));}catch(_){}$('st-msg').innerHTML='<div class="msg">⚠️ Mémoire du navigateur pleine : les plus anciens résultats ont été retirés.</div>';return false;}}
+const dayN=d=>Math.floor(Date.parse(d+'T12:00Z')/864e5);
+function ingestRace(race){
+  if(!race||!race.arrivee||!race.arrivee.length||!race.partants||ST.keys[race.key])return false;
+  const P=race.partants.filter(p=>!p.np&&+p.cote>0);if(P.length<3)return false;
+  const dn=dayN(race.date),h=di('h',race.hippo),d=di('d',race.disc);
+  P.forEach(p=>{const pos=race.arrivee.indexOf(p.num)+1;ST.rows.push([dn,h,d,di('j',p.jockey),di('e',p.entr),Math.round(p.cote*10),pos,P.length]);});
+  ST.keys[race.key]=1;return true;
+}
+function ingestAll(){let n=0;Object.values(state.races).forEach(r=>{if(ingestRace(r))n++;});if(n)stSave();return n;}
+async function loadHistory(){
+  const N=+$('st-days').value,box=$('st-msg');let added=0,daysDone=0;
+  for(let i=1;i<=N;i++){
+    const date=new Date(Date.now()-i*864e5).toISOString().slice(0,10);if(ST.days[date]){daysDone++;continue;}
+    box.innerHTML=`<div class="msg ok">Jour ${i}/${N} (${new Date(date+'T12:00').toLocaleDateString('fr-FR')})… ${added} courses ajoutées</div>`;
+    try{
+      const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[],jobs=[];
+      Rs.forEach(r=>(r.courses||[]).forEach(c=>{const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`;if(ST.keys[key])return;
+        const arr=Array.isArray(c.ordreArrivee)?c.ordreArrivee.flat().map(Number).filter(Boolean):[];if(arr.length)jobs.push({r,c,key,arr});}));
+      const worker=async()=>{while(jobs.length){const {r,c,key,arr}=jobs.shift();try{
+        const parts=await fetchPartants(date,r.numOfficiel,c.numOrdre);
+        if(ingestRace({key,date,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',disc:DISC[c.discipline]||c.discipline||'',arrivee:arr,partants:parts}))added++;}catch(e){}}};
+      await Promise.all([1,2,3,4,5,6].map(worker));
+      ST.days[date]=1;daysDone++;if(!stSave())break;
+    }catch(e){box.innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';renderStats();return;}
+  }
+  box.innerHTML=`<div class="msg ok">✅ Historique à jour : ${added} nouvelles courses ajoutées.</div>`;fillStatsFilters();renderStats();
+}
+function fillStatsFilters(){
+  const cnt=(col,dict)=>{const c={};ST.rows.forEach(r=>c[r[col]]=(c[r[col]]||0)+1);return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([i,n])=>[dict[i],n]);};
+  const h=$('st-hip').value,d=$('st-disc').value;
+  $('st-hip').innerHTML='<option value="">Tous hippodromes</option>'+cnt(1,ST.dict.h).map(([v,n])=>`<option ${v===h?'selected':''} value="${esc(v)}">${esc(v)} (${n})</option>`).join('');
+  $('st-disc').innerHTML='<option value="">Toutes disciplines</option>'+cnt(2,ST.dict.d).map(([v])=>`<option ${v===d?'selected':''} value="${esc(v)}">${esc(v)}</option>`).join('');
+}
+function renderStats(){
+  const R=ST.rows,days=Object.keys(ST.days).length,races=Object.keys(ST.keys).length;
+  const dmin=R.length?Math.min(...R.map(r=>r[0])):0,dmax=R.length?Math.max(...R.map(r=>r[0])):0,fd=n=>new Date(n*864e5).toLocaleDateString('fr-FR');
+  $('st-kpis').innerHTML=[['Courses analysées',races],['Partants',R.length],['Période',R.length?fd(dmin)+' → '+fd(dmax):'—'],['Jockeys',ST.dict.j.length],['Entraîneurs',ST.dict.e.length]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v" style="font-size:${String(v).length>12?'15px':'22px'}">${v}</div></div>`).join('');
+  const g=$('st-group').value,hip=$('st-hip').value,disc=$('st-disc').value,cmax=+$('st-cmax').value||0,min=+$('st-min').value||1,q=$('st-q').value.trim().toUpperCase();
+  const hI=hip?DIX.h[hip]:null,dI=disc?DIX.d[disc]:null,D=ST.dict,agg={};
+  for(const r of R){if(hI!=null&&r[1]!==hI)continue;if(dI!=null&&r[2]!==dI)continue;const cote=r[5]/10;if(cmax&&cote>cmax)continue;
+    let k;
+    if(g==='e')k=D.e[r[4]];else if(g==='j')k=D.j[r[3]];else if(g==='je')k=D.j[r[3]]+'  +  '+D.e[r[4]];else if(g==='he')k=D.e[r[4]]+'  @  '+D.h[r[1]];else if(g==='hj')k=D.j[r[3]]+'  @  '+D.h[r[1]];
+    else{k=D.h[r[1]];}
+    const a=agg[k]||(agg[k]={n:0,w:0,p:0,ret:0,cs:0});
+    if(g==='h'){a.races=a.races||{};a.all=(a.all||[]);a.all.push(r);continue;}
+    a.n++;a.cs+=cote;if(r[6]===1){a.w++;a.ret+=cote;}if(r[6]>=1&&r[6]<=3)a.p++;}
+  if(g==='h'){ // par hippodrome : ROI en jouant le favori du marché de chaque course
+    Object.values(agg).forEach(a=>{const byRace={};a.all.forEach(r=>{const k=r[0]+'|'+r[7]+'|'+r[2];(byRace[k]=byRace[k]||[]).push(r);});
+      Object.assign(a,{n:0,w:0,p:0,ret:0,cs:0});
+      Object.values(byRace).forEach(rs=>{const f=rs.reduce((m,r)=>r[5]<m[5]?r:m);a.n++;a.cs+=f[5]/10;if(f[6]===1){a.w++;a.ret+=f[5]/10;}if(f[6]>=1&&f[6]<=3)a.p++;});delete a.all;});
+  }
+  let L=Object.entries(agg).filter(([k,a])=>a.n>=min&&(!q||k.includes(q))&&!/^\?/.test(k)).map(([k,a])=>({k,...a,roi:(a.ret-a.n)/a.n,winr:a.w/a.n,profit:a.ret-a.n}));
+  const s=$('st-sort').value;L.sort((x,y)=>s==='n'?y.n-x.n:s==='win'?y.winr-x.winr:s==='profit'?y.profit-x.profit:y.roi-x.roi);
+  const lab={e:'Entraîneur',j:'Jockey / driver',je:'Jockey + entraîneur',he:'Entraîneur @ hippodrome',hj:'Jockey @ hippodrome',h:'Hippodrome (favori joué)'}[g];
+  let h=`<thead><tr><th>#</th><th>${lab}</th><th class="num">${g==='h'?'Courses':'Partants'}</th><th class="num">Victoires</th><th class="num">% victoires</th><th class="num">% placé</th><th class="num">Cote moy.</th><th class="num">ROI gagnant</th><th class="num">Bénéf. (1 €/partant)</th></tr></thead><tbody>`;
+  if(!R.length)h+='<tr><td colspan="9" class="empty">Pas encore de résultats. Clique sur « Charger l\'historique des résultats ».</td></tr>';
+  else if(!L.length)h+='<tr><td colspan="9" class="empty">Rien ne correspond. Baisse « Partants mini » ou retire des filtres.</td></tr>';
+  L.slice(0,100).forEach((a,i)=>{h+=`<tr><td class="sub">${i+1}</td><td><b>${esc(a.k)}</b></td><td class="num">${a.n}</td><td class="num">${a.w}</td><td class="num">${pct(a.winr)}</td><td class="num">${pct(a.p/a.n)}</td><td class="num">${(a.cs/a.n).toFixed(1)}</td>
+    <td class="num"><b class="${a.roi>=0?'pos':'neg'}">${a.roi>=0?'+':''}${pct(a.roi)}</b></td><td class="num ${a.profit>=0?'pos':'neg'}">${a.profit>=0?'+':''}${eur(a.profit)}</td></tr>`;});
+  $('st-table').innerHTML=h+'</tbody>';
+}
+$('st-load').onclick=loadHistory;
+$('st-reset').onclick=()=>{if(!confirm('Effacer toutes les stats ?'))return;ST={dict:{h:[],j:[],e:[],d:[]},days:{},keys:{},rows:[]};Object.keys(DIX).forEach(k=>DIX[k]={});stSave();fillStatsFilters();renderStats();};
+['st-group','st-hip','st-disc','st-cmax','st-min','st-sort','st-q'].forEach(i=>$(i).addEventListener('input',renderStats));
+ingestAll();fillStatsFilters();renderStats();
+
+// =================== RÉSULTATS & RAPPORTS AUTOMATIQUES ===================
+const RAPLAB={E_SIMPLE_GAGNANT:'SG',SIMPLE_GAGNANT:'SG',E_SIMPLE_PLACE:'SP',SIMPLE_PLACE:'SP',E_COUPLE_GAGNANT:'Couplé G',COUPLE_GAGNANT:'Couplé G',E_COUPLE_PLACE:'Couplé P',COUPLE_PLACE:'Couplé P',
+  E_COUPLE_ORDRE:'Couplé O',COUPLE_ORDRE:'Couplé O',E_TRIO:'Trio',TRIO:'Trio',E_TRIO_ORDRE:'Trio O',E_DEUX_SUR_QUATRE:'2/4',DEUX_SUR_QUATRE:'2/4',E_TIERCE:'Tiercé',TIERCE:'Tiercé',E_QUARTE_PLUS:'Quarté+',QUARTE_PLUS:'Quarté+',E_QUINTE_PLUS:'Quinté+',QUINTE_PLUS:'Quinté+',E_MULTI:'Multi',MULTI:'Multi',E_SUPER_QUATRE:'Super 4',E_PICK5:'Pick 5'};
+function parseRapports(d){
+  const out={};(Array.isArray(d)?d:(d&&d.rapports)||[]).forEach(t=>{const lab=RAPLAB[t.typePari]||t.typePari;if(!lab)return;
+    (t.rapports||[]).forEach(x=>{let v=x.dividendePourUnEuro!=null?x.dividendePourUnEuro/100:x.dividende!=null?x.dividende/100/(t.miseBase?t.miseBase/100:1):null;if(!(v>0))return;
+      (out[lab]=out[lab]||[]).push({c:String(x.combinaison||'').replace(/\s/g,''),lib:x.libelle||'',v:Math.round(v*100)/100});});});
+  return out;
+}
+function rapHtml(r,short){
+  const R=r.rapports;if(!R)return '';const sg=R.SG&&R.SG[0],sp=R.SP||[];
+  if(short)return [sg?`SG ${eur(sg.v)}`:'',sp.length?`SP ${sp.map(x=>x.c+' : '+eur(x.v)).join(' · ')}`:''].filter(Boolean).join('<br>');
+  return Object.entries(R).map(([k,v])=>`<div><b>${esc(k)}</b> : ${v.slice(0,6).map(x=>`${esc(x.c)}${x.lib&&!/^\d/.test(x.lib)?' '+esc(x.lib):''} → <b>${eur(x.v)}</b>`).join(' · ')}</div>`).join('');
+}
+const raceCode=s=>{const m=String(s||'').match(/R\s*(\d+)\s*C\s*(\d+)/i);return m?{R:+m[1],C:+m[2]}:null;};
+function settleBets(r){
+  const out=[];if(!r.arrivee||!r.arrivee.length)return out;
+  const nPart=(r.partants||[]).filter(p=>!p.np).length||r.arrivee.length,placeN=nPart>=8?3:2,top=r.arrivee;
+  state.bets.filter(b=>b.cat==='turf'&&b.status==='encours'&&b.date===r.date).forEach(b=>{
+    const rc=raceCode(b.race);if(!rc||rc.R!==r.R||rc.C!==r.C)return;
+    const H=numsOf(b.horses),np=H.filter(n=>(r.partants||[]).some(p=>p.num===n&&p.np));if(!H.length)return;
+    const t=b.ttype,R=r.rapports||{};let st=null,ret=null,txt='';
+    if(t==='Simple gagnant'||t==='Simple placé'){
+      if(np.length){st='rembourse';txt='non-partant → remboursé';}
+      else if(t==='Simple gagnant'){const win=top[0]===H[0];st=win?'gagne':'perdu';if(win){const x=R.SG&&R.SG[0];ret=x?Math.round(+b.stake*x.v*100)/100:null;}}
+      else{const pl=top.slice(0,placeN).includes(H[0]);st=pl?'gagne':'perdu';if(pl){const x=(R.SP||[]).find(z=>numsOf(z.c)[0]===H[0]);ret=x?Math.round(+b.stake*x.v*100)/100:null;}}
+      if(st==='gagne'&&ret==null)return out.push({b,r,txt:'🎉 gagné ! rapport pas encore publié, le gain sera calculé à la prochaine mise à jour'});
+      b.status=st;if(ret!=null)b.ret=ret;b.auto=true;
+      out.push({b,r,txt:st==='gagne'?`✅ gagné : +${eur(ret-b.stake)}`:st==='rembourse'?'↩️ '+txt:'❌ perdu'});
+    }else{
+      const need={'Couplé gagnant':[2,2],'Couplé placé':[2,3],'Couplé ordre':[2,2],'Trio':[3,3],'Trio ordre':[3,3],'2 sur 4':[2,4],'Tiercé':[3,3],'Quarté+':[4,4],'Quinté+':[5,5]}[t];
+      if(!need||b.flagKey===r.key+top.join())return;const [k,n]=need,ok=top.slice(0,n).filter(x=>H.includes(x)).length>=k;b.flagKey=r.key+top.join();
+      const lab={'Couplé gagnant':'Couplé G','Couplé placé':'Couplé P','Couplé ordre':'Couplé O','Trio':'Trio','Trio ordre':'Trio O','2 sur 4':'2/4','Tiercé':'Tiercé','Quarté+':'Quarté+','Quinté+':'Quinté+'}[t],rp=(R[lab]||[]).map(x=>`${x.c}${x.lib&&!/^\d/.test(x.lib)?' '+x.lib:''} : ${eur(x.v)}`).join(' · ');
+      out.push({b,r,txt:ok?`🎉 Probablement gagnant (${t}) ! ${rp?'Rapports pour 1 € : '+rp+'. ':''}Vérifie le gain puis valide ton pari.`:`❌ Probablement perdu (${t}) : tes chevaux ne sont pas dans l'arrivée. Valide ton pari.`});
+    }});
+  return out;
+}
+let arTimer=null,arBusy=false;state.autoRes=state.autoRes!==false;
+function arBanner(items){if(!items.length)return;const box=$('ar-banner');
+  box.innerHTML=items.map(i=>`<div class="alert ${/gagn/.test(i.txt)?'arb':/perdu/.test(i.txt)?'mene':''}"><div>🏁 <b>R${i.r.R}C${i.r.C} ${esc(i.r.hippo)}</b> · arrivée <b>${i.r.arrivee.slice(0,5).join(' - ')}</b>${i.b?` · ton pari ${esc(i.b.ttype||'')} ${esc(i.b.horses||'')} : ${i.txt}`:''}${i.rap?`<div class="sub">${i.rap}</div>`:''}</div><button class="btn small" onclick="this.parentNode.remove()">OK</button></div>`).join('')+box.innerHTML;
+  box.classList.remove('hidden');if(L&&L.sound)beep();}
+async function arTick(){
+  if(arBusy)return;arBusy=true;
+  try{
+    const today=new Date().toISOString().slice(0,10),dates=[...new Set([today,...state.bets.filter(b=>b.cat==='turf'&&b.status==='encours').map(b=>b.date)])].filter(d=>d<=today&&d>=new Date(Date.now()-3*864e5).toISOString().slice(0,10));
+    const items=[];let changed=false;
+    for(const date of dates){
+      const mine=Object.values(state.races).filter(r=>r.date===date&&r.R&&(!r.arrivee||!r.rapports));
+      if(!mine.length&&!state.bets.some(b=>b.cat==='turf'&&b.status==='encours'&&b.date===date))continue;
+      const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];
+      for(const re of Rs)for(const c of (re.courses||[])){
+        const key=`${date}-R${re.numOfficiel}C${c.numOrdre}`;let r=state.races[key];
+        const wantBet=state.bets.some(b=>b.cat==='turf'&&b.status==='encours'&&b.date===date&&(x=>x&&x.R===re.numOfficiel&&x.C===c.numOrdre)(raceCode(b.race)));
+        if(!r&&!wantBet)continue;
+        if(!r){r=state.races[key]={key,date,R:re.numOfficiel,C:c.numOrdre,hippo:(re.hippodrome&&re.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,auto:true,snaps:[],partants:[]};}
+        const had=!!(r.arrivee&&r.arrivee.length);raceMeta(r,re,c);
+        if(!r.arrivee||!r.arrivee.length||r.rapports)continue;
+        try{const rp=parseRapports(await api(`${pmuDate(date)}/R${re.numOfficiel}/C${c.numOrdre}/rapports-definitifs`));if(Object.keys(rp).length)r.rapports=rp;}catch(e){}
+        if(!r.partants.length){try{r.partants=await fetchPartants(date,re.numOfficiel,c.numOrdre);}catch(e){}}
+        changed=true;ingestRace(r);
+        const s=settleBets(r);
+        if(s.length)s.forEach(x=>items.push({...x,rap:rapHtml(r,true)}));
+        else if(!had&&(r.partants||[]).some(p=>isFav(p.nom)))items.push({r,b:null,txt:'',rap:'⭐ Un de tes favoris courait. '+rapHtml(r,true)});
+      }
+    }
+    if(changed){save();stSave();render();arBanner(items);
+      const v=['mypage','board','stats'].find(n=>!$(n+'View').classList.contains('hidden'));if(v==='mypage')renderMyPage();if(v==='board')renderBoard();if(v==='stats')renderStats();
+      $('ar-state').textContent='Résultats vérifiés à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}
+    else $('ar-state').textContent='Résultats vérifiés à '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){$('ar-state').textContent='⚠️ Résultats : PMU injoignable';}
+  arBusy=false;
+}
+function arSet(){clearInterval(arTimer);arTimer=null;if(state.autoRes){arTick();arTimer=setInterval(arTick,120000);}else $('ar-state').textContent='';}
+$('ar-toggle').checked=state.autoRes;$('ar-toggle').onchange=()=>{state.autoRes=$('ar-toggle').checked;save();arSet();};
+arSet();
+
+resetForm();render();
+})();
+</script>
+</body>
+</html>
