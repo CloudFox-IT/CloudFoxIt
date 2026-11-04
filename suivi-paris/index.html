@@ -315,6 +315,11 @@ select,input{max-width:100%}
     </div>
   </div>
   <div class="card">
+    <h2>⭐ Mes favoris du jour</h2>
+    <div class="tablewrap"><table id="tb-favs"></table></div>
+    <p class="sub">Tes chevaux favoris engagés ce jour-là, avec ce qui a changé depuis leur dernière course vue. Gère la liste dans l'onglet Analyse course (partie Mes favoris).</p>
+  </div>
+  <div class="card">
     <h2>🔥 Plus grosses baisses de cote (l'argent rentre)</h2>
     <div class="tablewrap"><table id="tb-moves-t"></table></div>
     <p class="sub">Variation = cote actuelle comparée à la cote de référence du matin (ou à ton premier relevé). Une forte baisse veut dire que beaucoup de parieurs jouent ce cheval.</p>
@@ -471,7 +476,9 @@ select,input{max-width:100%}
     <div class="tablewrap"><table id="scan-table"></table></div>
     <h2 style="margin-top:16px">Liste de mes favoris</h2>
     <div class="tablewrap"><table id="favTable"></table></div>
-    <div class="actions"><input id="fav-new" placeholder="Nom du cheval"><button class="btn" id="fav-add">Ajouter</button></div>
+    <label style="margin-top:10px">Ajouter des favoris : un nom par ligne (ou séparés par des virgules), tu peux coller toute ta liste d'un coup
+      <textarea id="fav-new" rows="3" placeholder="Idao de Tillard&#10;Go On Boy&#10;Hooker Berry"></textarea></label>
+    <div class="actions"><button class="btn" id="fav-add">⭐ Ajouter à mes favoris</button><span class="sub" id="fav-addmsg"></span></div>
   </div>
 </div>
 </div>
@@ -885,7 +892,9 @@ function renderFavs(){
 $('favTable').addEventListener('click',e=>{const t=e.target.closest('[data-unfav],[data-open]');if(!t)return;e.preventDefault();
   if(t.dataset.unfav)toggleFav(t.dataset.unfav);else openRace(t.dataset.open);});
 $('favTable').addEventListener('change',e=>{const i=e.target.closest('[data-note]');if(!i)return;state.favs[i.dataset.note].note=i.value;save();if(cur)renderRace();});
-$('fav-add').onclick=()=>{const n=$('fav-new').value.trim();if(n&&!isFav(n))toggleFav(n);$('fav-new').value='';};
+$('fav-add').onclick=()=>{const L=$('fav-new').value.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);let n=0;
+  L.forEach(x=>{if(!isFav(x)){state.favs[fkey(x)]={nom:x,note:'',added:Date.now()};n++;}});save();renderFavs();if(cur)renderRace();if(typeof renderBoard==='function')renderBoard();
+  $('fav-new').value='';$('fav-addmsg').textContent=L.length?`${n} ajouté(s)${L.length-n?`, ${L.length-n} déjà dans la liste`:''}.`:'';};
 fillSaved();renderFavs();
 // --- favoris : suivi des changements & scan du programme
 const fmtEq=v=>v?String(v).toLowerCase().replace(/_/g,' ').replace(/^deferre /,'déferré ').replace(/anterieurs/,'antérieurs').replace(/posterieurs/,'postérieurs').replace(/oeilleres/,'œillères'):'';
@@ -1348,6 +1357,18 @@ function renderBoard(){
   if(!mv.length)m+=`<tr><td colspan="9" class="empty">${all.length?'Pas de grosse baisse pour le moment. Actualise plus tard.':'Charge le programme pour voir les mouvements.'}</td></tr>`;
   mv.slice(0,10).forEach(({r,p,v})=>{const sc=formScore(p.mus);m+=`<tr class="${isFav(p.nom)?'fav':''}"><td>${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</td><td>R${r.R}C${r.C} <span class="sub">${esc(r.hippo)}</span></td><td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${isFav(p.nom)?' ⭐':''}</td><td class="num">${refOf(r,p)}</td><td class="num"><b>${p.cote}</b></td><td class="num trend-down">▼ ${Math.round(-v*100)} %</td><td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td><button class="btn small" data-tbopen="${esc(r.key)}">🔎</button></td></tr>`;});
   $('tb-moves-t').innerHTML=m+'</tbody>';
+  const FV=[];all.forEach(r=>r.partants.forEach(p=>{if(isFav(p.nom))FV.push({r,p});}));
+  let fh='<thead><tr><th>Heure</th><th>Course</th><th class="num">N°</th><th>Cheval</th><th>Jockey / Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Réf.</th><th class="num">Cote</th><th class="num">Var.</th><th>Changements</th><th></th></tr></thead><tbody>';
+  const nf=Object.keys(state.favs).length;
+  if(!FV.length)fh+=`<tr><td colspan="12" class="empty">${!nf?'Tu n\'as pas encore de favoris : ajoute-les dans l\'onglet Analyse course.':all.length?`Aucun de tes ${nf} favoris ne court ce jour-là.`:'Charge le programme pour voir si tes favoris courent.'}</td></tr>`;
+  FV.forEach(({r,p})=>{const v=varOf(r,p),sc=formScore(p.mus),f=state.favs[fkey(p.nom)],ch=favChanges(f,r.key);
+    fh+=`<tr class="${p.np?'np':''}"><td>${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</td><td>R${r.R}C${r.C} <span class="sub">${esc(r.hippo)} · ${esc(r.disc)}</span></td><td class="num"><b>${p.num}</b></td>
+      <td><b>⭐ ${esc(f.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${f.note?`<div class="sub">📝 ${esc(f.note)}</div>`:''}</td><td>${esc(p.jockey)}<div class="sub">${esc(p.entr)}</div></td><td>${musHtml(p.mus)}</td>
+      <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${refOf(r,p)||'—'}</td><td class="num"><b>${p.cote&&!p.np?p.cote:'—'}</b></td>
+      <td class="num">${v==null||Math.abs(v)<0.02?'—':`<span class="${v>0?'trend-up':'trend-down'}">${v>0?'▲':'▼'} ${Math.round(Math.abs(v)*100)} %</span>`}</td>
+      <td class="desc">${!ch||ch.first?'<span class="sub">🆕 Première course suivie</span>':ch.list.length?ch.list.join('<br>'):'<span class="pos">✅ Rien n\'a changé</span>'}</td>
+      <td><button class="btn small" data-tbopen="${esc(r.key)}">🔎</button></td></tr>`;});
+  $('tb-favs').innerHTML=fh+'</tbody>';
   // tableau par course
   if(!list.length){$('tb-board').innerHTML=`<div class="card"><p class="empty">${all.length?'Aucune course ne correspond aux filtres.':'Clique sur « Charger / actualiser les cotes » pour remplir le tableau avec toutes les courses du jour.'}</p></div>`;return;}
   let openN=0;
