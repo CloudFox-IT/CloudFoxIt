@@ -316,6 +316,22 @@ select,input{max-width:100%}
       </div>
     </div>
     <div id="mp-msg"></div>
+    <details id="px-box" style="margin-top:10px">
+      <summary style="cursor:pointer;color:var(--accent)">⚙️ Connexion aux données PMU <span id="px-state" class="sub"></span></summary>
+      <p class="sub" style="margin-top:8px">Le PMU ne laisse pas un site web lire ses données directement depuis ton navigateur (c'est ce qui donne « Failed to fetch »). Les sites de turf qui affichent ces données passent par leur propre serveur. L'appli essaie donc d'abord le PMU en direct, puis des <b>relais publics gratuits</b>. Si aucun ne marche, ou pour plus de fiabilité, crée ton <b>propre relais gratuit</b> (5 minutes) :</p>
+      <ol class="sub" style="margin:0 0 8px 18px;padding:0">
+        <li>Crée un compte gratuit sur <a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener">dash.cloudflare.com</a>.</li>
+        <li>Menu <b>Workers & Pages</b> → <b>Create</b> → <b>Create Worker</b> → nomme-le <code>relais-pmu</code> → <b>Deploy</b>.</li>
+        <li><b>Edit code</b> : efface tout, colle le contenu du fichier <a href="https://github.com/CloudFox-IT/CloudFoxIt/blob/main/suivi-paris/relais-pmu-cloudflare.js" target="_blank" rel="noopener">relais-pmu-cloudflare.js</a>, puis <b>Deploy</b>.</li>
+        <li>Copie l'adresse du worker (du type <code>https://relais-pmu.ton-nom.workers.dev</code>) et colle-la ci-dessous.</li>
+      </ol>
+      <div class="filters">
+        <input id="px-url" placeholder="https://relais-pmu.ton-nom.workers.dev" style="flex:1;min-width:220px">
+        <button class="btn" id="px-save">Enregistrer</button>
+        <button class="btn primary" id="px-test">🔌 Tester la connexion</button>
+      </div>
+      <div id="px-msg"></div>
+    </details>
     <div class="kpis" id="mp-kpis" style="margin:12px 0 0"></div>
   </div>
   <div class="card">
@@ -789,7 +805,30 @@ function musHtml(m){
 }
 function scoreColor(s){return s==null?'':s>=7?'s-gagne':s>=4.5?'s-encours':'s-perdu';}
 
-async function api(path){const r=await fetch(API+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+// --- accès PMU : direct, puis relais (proxy) si le navigateur bloque
+const PXNAMES=['ton relais perso','PMU en direct','relais public 1','relais public 2','relais public 3'];
+const PXS=[u=>state.proxy?state.proxy.replace(/\/+$/,'')+'/?url='+encodeURIComponent(u):null,u=>u,
+  u=>'https://corsproxy.io/?url='+encodeURIComponent(u),u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),u=>'https://api.codetabs.com/v1/proxy/?quest='+encodeURIComponent(u)];
+let pxOk=null;
+function pxShow(){$('px-state').textContent=pxOk==null?'':`— connecté via ${PXNAMES[pxOk]}`;}
+async function api(path){
+  const url=API+path,order=[...(pxOk!=null?[pxOk]:[]),...PXS.keys()].filter((v,i,a)=>a.indexOf(v)===i);let last='';
+  for(const i of order){const u=PXS[i](url);if(!u)continue;
+    try{const r=await fetch(u,{headers:{Accept:'application/json'}});
+      if(r.status===404||r.status===204){if(pxOk==null){pxOk=i;pxShow();}throw Object.assign(new Error('HTTP '+r.status),{final:true});}
+      if(!r.ok){last='HTTP '+r.status;continue;}
+      const t=await r.text();let j;try{j=JSON.parse(t);}catch(e){last='réponse illisible';continue;}
+      if(pxOk!==i){pxOk=i;pxShow();}return j;
+    }catch(e){if(e.final)throw e;last=e.message;}}
+  pxOk=null;pxShow();throw new Error((last||'Failed to fetch')+' — ouvre « ⚙️ Connexion aux données PMU » dans Ma page turf');
+}
+$('px-url').value=state.proxy||'';
+$('px-save').onclick=()=>{state.proxy=$('px-url').value.trim();save();pxOk=null;$('px-msg').innerHTML='<div class="msg ok">Enregistré. Clique sur « Tester la connexion ».</div>';};
+$('px-test').onclick=async()=>{$('px-msg').innerHTML='<div class="msg ok">Test en cours…</div>';pxOk=null;
+  try{const d=await api(pmuDate(new Date().toISOString().slice(0,10)));const n=((d.programme&&d.programme.reunions)||[]).length;
+    $('px-msg').innerHTML=`<div class="msg ok">✅ Ça marche via <b>${PXNAMES[pxOk]}</b> : ${n} réunion(s) aujourd'hui.</div>`;}
+  catch(e){$('px-msg').innerHTML=`<div class="msg">❌ Aucune connexion ne marche (${esc(e.message.split(' — ')[0])}). Crée ton relais perso avec les étapes ci-dessus.</div>`;}};
+
 
 $('r-date').value=new Date().toISOString().slice(0,10);
 $('r-load').onclick=async()=>{
