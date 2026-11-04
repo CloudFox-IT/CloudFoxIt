@@ -93,6 +93,19 @@ select,input{max-width:100%}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font:inherit;color:var(--text);font-size:13px}
 .chip.active{border-color:var(--accent);background:var(--accent-soft)}
+.alert{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:10px 12px;border-radius:10px;border:1px solid var(--border);margin-bottom:8px;background:var(--bg)}
+.alert.mene{border-color:var(--loss);background:var(--loss-soft)}
+.alert.nul{border-color:var(--pend);background:var(--pend-soft)}
+.alert.envol,.alert.chute{border-color:var(--accent);background:var(--accent-soft)}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--loss);margin-right:6px;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.oddcell{display:inline-block;min-width:54px;text-align:right}
+.oddcell.fav{font-weight:700;text-decoration:underline}
+.scorebox{font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+.rules{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:10px}
+.rules label{flex-direction:row;align-items:flex-start;gap:8px;color:var(--text);font-size:14px;border:1px solid var(--border);border-radius:8px;padding:8px}
+.sportlist{display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow:auto;margin-top:6px}
+.sportlist label{flex-direction:row;align-items:center;gap:4px;font-size:13px;color:var(--text);border:1px solid var(--border);border-radius:8px;padding:4px 8px}
 </style>
 </head>
 <body>
@@ -103,6 +116,7 @@ select,input{max-width:100%}
       <button class="tab active" data-cat="all">Tous</button>
       <button class="tab" data-cat="sport">⚽ Paris sportifs</button>
       <button class="tab" data-cat="turf">🐎 Turf (chevaux)</button>
+      <button class="tab" data-view="live">📡 Live sport</button>
       <button class="tab" data-view="race">🔎 Analyse course</button>
     </div>
   </header>
@@ -210,6 +224,46 @@ select,input{max-width:100%}
     <p class="sub">Les données sont enregistrées dans ce navigateur. Fais une sauvegarde JSON de temps en temps pour ne rien perdre.</p>
   </div>
   </div>
+<div id="liveView" class="hidden">
+  <div class="card">
+    <h2>📡 Cotes live — configuration</h2>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Clé API <input id="l-key" type="password" placeholder="clé The Odds API" style="width:240px"></label>
+      <button class="btn" id="l-sportsBtn">Charger les compétitions</button>
+      <label style="flex-direction:row;align-items:center;gap:6px">Actualiser toutes les
+        <select id="l-int"><option value="60">1 min</option><option value="120">2 min</option><option value="300">5 min</option><option value="600">10 min</option></select></label>
+      <button class="btn primary" id="l-start">▶️ Démarrer</button>
+      <button class="btn" id="l-demo">🎮 Mode démo</button>
+    </div>
+    <p class="sub">Les cotes viennent de <b>The Odds API</b> (the-odds-api.com, clé gratuite : 500 requêtes/mois). Coût estimé : <b id="l-cost">—</b>. <span id="l-quota"></span> La clé reste dans ce navigateur.</p>
+    <div class="sportlist" id="l-sports"></div>
+    <div class="rules">
+      <label><input type="checkbox" data-rule="mene"> <span>🔻 <b>Favori mené</b> — le favori d'avant-match perd au score</span></label>
+      <label><input type="checkbox" data-rule="nul"> <span>🤝 <b>Favori accroché</b> — score nul alors qu'il devait gagner</span></label>
+      <label><input type="checkbox" data-rule="envol"> <span>🚀 <b>Cote du favori qui s'envole</b> — hausse ≥ seuil</span></label>
+      <label><input type="checkbox" data-rule="chute"> <span>📉 <b>Cote de l'outsider qui chute</b> — baisse ≥ seuil</span></label>
+    </div>
+    <div class="filters" style="margin-top:10px">
+      <label style="flex-direction:row;align-items:center;gap:6px">Favori = cote d'avant-match ≤ <input id="l-seuil" type="number" step="0.05" min="1" style="width:80px"></label>
+      <label style="flex-direction:row;align-items:center;gap:6px">Variation de cote ≥ <input id="l-var" type="number" step="5" min="5" style="width:70px"> %</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="l-sound"> 🔔 Son</label>
+      <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="l-notif"> 📲 Notifications</label>
+    </div>
+    <div id="l-msg"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">🚨 Alertes</h2><button class="btn small" id="l-clear">Effacer</button></div>
+    <div id="l-alerts" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2 id="l-title">⚽ Matchs</h2>
+    <div class="filters"><select id="l-show"><option value="live">En direct seulement</option><option value="all">En direct + à venir</option></select><span class="sub" id="l-last"></span></div>
+    <div class="tablewrap"><table id="l-table"></table></div>
+    <p class="sub">Cotes = moyenne des bookmakers. <u>Souligné</u> = favori d'avant-match. ↑/↓ = évolution depuis le premier relevé. La courbe montre la cote du favori.</p>
+  </div>
+</div>
 <div id="raceView" class="hidden">
   <div class="card">
     <h2>🔎 Charger une course</h2>
@@ -442,8 +496,8 @@ $('table').onclick=e=>{
 
 $('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
-  const race=t.dataset.view==='race';$('raceView').classList.toggle('hidden',!race);$('betsView').classList.toggle('hidden',race);
-  if(race){if(cur)drawOdds();return;}
+  const v=t.dataset.view||'bets';['bets','race','live'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
+  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;}
   cat=t.dataset.cat;
   if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
@@ -463,7 +517,7 @@ $('importBtn').onclick=()=>$('importFile').click();
 $('importFile').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const d=JSON.parse(await f.text());if(!Array.isArray(d.bets))throw 0;
-    if(confirm(`Importer ${d.bets.length} paris ? (remplace les données actuelles)`)){state=d;state.races=state.races||{};state.favs=state.favs||{};fillSaved();renderFavs();$('bankroll').value=state.bankroll;save();render();}
+    if(confirm(`Importer ${d.bets.length} paris ? (remplace les données actuelles)`)){state=d;state.live=L;state.races=state.races||{};state.favs=state.favs||{};fillSaved();renderFavs();$('bankroll').value=state.bankroll;save();render();}
   }catch(_){alert('Fichier invalide.');}
   e.target.value='';
 };
@@ -673,6 +727,175 @@ $('favTable').addEventListener('change',e=>{const i=e.target.closest('[data-note
 $('fav-add').onclick=()=>{const n=$('fav-new').value.trim();if(n&&!isFav(n))toggleFav(n);$('fav-new').value='';};
 fillSaved();renderFavs();
 window.addEventListener('resize',()=>{if(cur&&!$('raceView').classList.contains('hidden'))drawOdds();});
+
+// =================== LIVE SPORT ===================
+const LDEF={key:'',sports:['soccer_france_ligue_one','soccer_uefa_champs_league'],interval:300,seuil:1.8,vari:30,rules:{mene:true,nul:true,envol:true,chute:false},sound:true,notif:false};
+state.live=Object.assign({},LDEF,state.live||{});state.live.rules=Object.assign({},LDEF.rules,state.live.rules);
+let LEV={}, lAlerts=[], lSeen=new Set(), lTimer=null, demo=false, sportsMeta={};
+const OAPI='https://api.the-odds-api.com/v4/sports/';
+const SPORTMAP={Soccer:'Football',Basketball:'Basket',Tennis:'Tennis','Ice Hockey':'Hockey','Rugby Union':'Rugby','Rugby League':'Rugby','Mixed Martial Arts':'MMA / Boxe',Boxing:'MMA / Boxe',Handball:'Handball'};
+const L=state.live;
+function lmsg(t,ok){$('l-msg').innerHTML=t?`<div class="msg ${ok?'ok':''}">${t}</div>`:'';}
+// init UI
+$('l-key').value=L.key;$('l-int').value=L.interval;$('l-seuil').value=L.seuil;$('l-var').value=L.vari;$('l-sound').checked=L.sound;$('l-notif').checked=L.notif;
+document.querySelectorAll('[data-rule]').forEach(c=>{c.checked=!!L.rules[c.dataset.rule];c.onchange=()=>{L.rules[c.dataset.rule]=c.checked;save();lEvalAll();lRender();};});
+$('l-key').onchange=()=>{L.key=$('l-key').value.trim();save();};
+$('l-int').onchange=()=>{L.interval=+$('l-int').value;save();lCost();if(lTimer&&!demo)lStart();};
+$('l-seuil').onchange=()=>{L.seuil=+$('l-seuil').value||1.8;save();lEvalAll();lRender();};
+$('l-var').onchange=()=>{L.vari=+$('l-var').value||30;save();lEvalAll();lRender();};
+$('l-sound').onchange=()=>{L.sound=$('l-sound').checked;save();};
+$('l-notif').onchange=async()=>{L.notif=$('l-notif').checked;save();
+  if(L.notif&&'Notification' in window&&Notification.permission!=='granted'){try{await Notification.requestPermission();}catch(e){}}};
+function lCost(){const n=L.sports.length;$('l-cost').textContent=n?`${n*2} requêtes par actualisation ≈ ${Math.round(n*2*3600/L.interval)} par heure`:'choisis au moins une compétition';}
+function renderSportList(){
+  const all=Object.keys(sportsMeta).length?Object.values(sportsMeta):L.sports.map(k=>({key:k,title:k,group:''}));
+  $('l-sports').innerHTML=all.map(s=>`<label><input type="checkbox" value="${esc(s.key)}" ${L.sports.includes(s.key)?'checked':''}> ${esc(s.group?s.group+' · ':'')}${esc(s.title)}</label>`).join('');
+  lCost();
+}
+$('l-sports').onchange=()=>{L.sports=[...$('l-sports').querySelectorAll('input:checked')].map(i=>i.value);save();lCost();};
+async function oget(path,params=''){
+  const r=await fetch(`${OAPI}${path}?apiKey=${encodeURIComponent(L.key)}${params}`);
+  const rem=r.headers.get('x-requests-remaining');if(rem!=null)$('l-quota').textContent=`Requêtes restantes ce mois : ${rem}.`;
+  if(!r.ok){let t='';try{t=(await r.json()).message||'';}catch(e){}throw new Error(`HTTP ${r.status} ${t}`);}
+  return r.json();
+}
+$('l-sportsBtn').onclick=async()=>{
+  if(!L.key){lmsg('Entre d\'abord ta clé API (gratuite sur the-odds-api.com).');return;}
+  try{const d=await oget('');sportsMeta={};d.filter(s=>s.active&&!s.has_outrights).forEach(s=>sportsMeta[s.key]=s);renderSportList();lmsg(`${Object.keys(sportsMeta).length} compétitions disponibles. Coche celles à surveiller.`,true);}
+  catch(e){lmsg('⚠️ '+esc(e.message));}
+};
+
+// --- données
+function avgOdds(ev){
+  const acc={};(ev.bookmakers||[]).forEach(b=>(b.markets||[]).filter(m=>m.key==='h2h').forEach(m=>m.outcomes.forEach(o=>{(acc[o.name]=acc[o.name]||[]).push(o.price);})));
+  const a=n=>acc[n]?Math.round(acc[n].reduce((x,y)=>x+y,0)/acc[n].length*100)/100:null;
+  return {h:a(ev.home_team),d:a('Draw'),a:a(ev.away_team)};
+}
+function upsert(o){ // o: {id,sport,comp,home,away,start,odds?,score?,completed?}
+  const now=Date.now();let e=LEV[o.id];
+  if(!e)e=LEV[o.id]={id:o.id,hist:[],open:null,openLive:false};
+  Object.assign(e,{sport:o.sport??e.sport,comp:o.comp??e.comp,home:o.home,away:o.away,start:o.start});
+  if(o.score)e.score=o.score; if(o.completed!=null)e.completed=o.completed;
+  if(o.odds&&(o.odds.h||o.odds.a)){
+    e.odds=o.odds; const last=e.hist[e.hist.length-1];
+    if(!last||JSON.stringify(last.o)!==JSON.stringify(o.odds))e.hist.push({t:now,o:o.odds});
+    if(!e.open){e.open=o.odds;e.openLive=now>e.start;}
+  }
+}
+function fav(e){if(!e.open||!e.open.h||!e.open.a)return null;return e.open.h<=e.open.a?'h':'a';}
+const isLive=e=>Date.now()>=e.start&&!e.completed;
+
+// --- détection
+function lEval(e){
+  const out=[],f=fav(e);if(!f||!isLive(e))return out;
+  const o=f==='h'?'a':'h', name=f==='h'?e.home:e.away, oname=f==='h'?e.away:e.home, op=e.open[f];
+  const s=e.score, sc=s?`${s.h}-${s.a}`:'';
+  if(op<=L.seuil&&s){
+    if(L.rules.mene&&s[f]<s[o])out.push({type:'mene',k:sc,txt:`🔻 Favori mené : <b>${esc(name)}</b> (cote départ ${op}) perd ${s[f]}-${s[o]} contre ${esc(oname)}`});
+    const mins=(Date.now()-e.start)/6e4;
+    if(L.rules.nul&&s[f]===s[o]&&(s.h+s.a>0||mins>=30))out.push({type:'nul',k:sc,txt:`🤝 Favori accroché : <b>${esc(name)}</b> (cote départ ${op}) — ${s.h}-${s.a}`});
+  }
+  if(e.odds&&e.odds[f]&&L.rules.envol&&op<=L.seuil&&e.odds[f]>=op*(1+L.vari/100))
+    out.push({type:'envol',k:'',txt:`🚀 Cote du favori <b>${esc(name)}</b> : ${op} → <b>${e.odds[f]}</b> (+${Math.round((e.odds[f]/op-1)*100)} %)`});
+  const oo=e.open[o];
+  if(e.odds&&e.odds[o]&&L.rules.chute&&e.odds[o]<=oo*(1-L.vari/100))
+    out.push({type:'chute',k:'',txt:`📉 Cote de l'outsider <b>${esc(oname)}</b> : ${oo} → <b>${e.odds[o]}</b> (${Math.round((e.odds[o]/oo-1)*100)} %)`});
+  return out;
+}
+function lEvalAll(silent){
+  Object.values(LEV).forEach(e=>{e.sits=lEval(e);e.sits.forEach(s=>{const k=`${e.id}|${s.type}|${s.k}`;if(lSeen.has(k))return;lSeen.add(k);
+    lAlerts.unshift({t:Date.now(),id:e.id,type:s.type,txt:s.txt});if(!silent)notify(e,s);});});
+  lAlerts=lAlerts.slice(0,50);
+}
+function beep(){try{const c=new (window.AudioContext||window.webkitAudioContext)(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(c.currentTime+.25);}catch(e){}}
+function notify(e,s){
+  if(L.sound)beep();
+  if(L.notif&&'Notification' in window&&Notification.permission==='granted'){try{new Notification('Alerte pari live',{body:s.txt.replace(/<[^>]+>/g,'')});}catch(_){}}
+}
+
+// --- rendu
+function spark(e){
+  const f=fav(e);if(!f||e.hist.length<2)return '';
+  const v=e.hist.map(h=>h.o[f]).filter(Boolean);if(v.length<2)return '';
+  const mn=Math.min(...v),mx=Math.max(...v),r=(mx-mn)||1;
+  const pts=v.map((x,i)=>`${(i/(v.length-1)*80).toFixed(1)},${(22-(x-mn)/r*20).toFixed(1)}`).join(' ');
+  const up=v[v.length-1]>v[0];
+  return `<svg width="80" height="24" viewBox="0 0 80 24"><polyline fill="none" stroke="var(${up?'--loss':'--win'})" stroke-width="2" points="${pts}"/></svg>`;
+}
+function oc(e,k){
+  const v=e.odds&&e.odds[k];if(!v)return '<span class="oddcell sub">—</span>';
+  const o=e.open&&e.open[k];let ar='';if(o&&o!==v)ar=v>o?' <span class="trend-up">↑</span>':' <span class="trend-down">↓</span>';
+  return `<span class="oddcell ${fav(e)===k?'fav':''}" title="départ : ${o||'?'}">${v}${ar}</span>`;
+}
+function lRender(){
+  const ev=Object.values(LEV).filter(e=>$('l-show').value==='all'?!e.completed:isLive(e)).sort((a,b)=>(b.sits||[]).length-(a.sits||[]).length||a.start-b.start);
+  let h='<thead><tr><th>Statut</th><th>Match</th><th class="num">Score</th><th class="num">1</th><th class="num">N</th><th class="num">2</th><th>Cote favori</th><th>Situation</th><th></th></tr></thead><tbody>';
+  if(!ev.length)h+=`<tr><td colspan="9" class="empty">${lTimer?'Aucun match en direct pour le moment dans les compétitions choisies.':'Clique sur ▶️ Démarrer (ou 🎮 Mode démo pour essayer).'}</td></tr>`;
+  for(const e of ev){
+    const live=isLive(e), s=e.score;
+    h+=`<tr class="${(e.sits||[]).length?'fav':''}"><td>${live?'<span class="live-dot"></span>Live '+Math.max(0,Math.floor((Date.now()-e.start)/6e4))+"'":new Date(e.start).toLocaleString('fr-FR',{weekday:'short',hour:'2-digit',minute:'2-digit'})}</td>
+      <td class="desc"><b>${esc(e.home)}</b> – <b>${esc(e.away)}</b><div class="sub">${esc(e.comp||'')}${e.openLive?' · cote de départ relevée en live':''}</div></td>
+      <td class="num scorebox">${s?s.h+' - '+s.a:'—'}</td><td class="num">${oc(e,'h')}</td><td class="num">${oc(e,'d')}</td><td class="num">${oc(e,'a')}</td>
+      <td>${spark(e)}</td><td>${(e.sits||[]).map(x=>`<span class="pill s-${x.type==='mene'?'perdu':x.type==='nul'?'encours':'rembourse'}">${{mene:'🔻 Favori mené',nul:'🤝 Favori accroché',envol:'🚀 Cote s\'envole',chute:'📉 Outsider chute'}[x.type]}</span>`).join(' ')||'<span class="sub">—</span>'}</td>
+      <td><button class="btn small" data-lbet="${esc(e.id)}">🎟️ Parier</button></td></tr>`;
+  }
+  $('l-table').innerHTML=h+'</tbody>';
+  $('l-alerts').innerHTML=lAlerts.length?lAlerts.map(a=>`<div class="alert ${a.type}"><div><span class="sub">${new Date(a.t).toLocaleTimeString('fr-FR')}</span> · ${a.txt}</div><button class="btn small" data-lbet="${esc(a.id)}" data-ltype="${a.type}">🎟️ Parier</button></div>`).join(''):'<p class="empty">Aucune alerte pour l\'instant. Elles apparaîtront ici dès qu\'une situation est détectée.</p>';
+}
+$('l-show').onchange=lRender;
+$('l-clear').onclick=()=>{lAlerts=[];lRender();};
+document.getElementById('liveView').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-lbet]');if(!b)return;const e=LEV[b.dataset.lbet];if(!e)return;
+  const f=fav(e)||'h', pickSide=b.dataset.ltype==='chute'?(f==='h'?'a':'h'):f;
+  document.querySelector('.tab[data-cat="sport"]').click();$('f-cat').value='sport';toggleCat();
+  $('f-date').value=new Date().toISOString().slice(0,10);$('f-sport').value=e.sport||'Football';$('f-comp').value=e.comp||'';
+  $('f-event').value=`${e.home} - ${e.away}`;$('f-pick').value=(pickSide==='h'?e.home:e.away)+' gagne';$('f-stype').value=isLive(e)?'Live':'Simple';
+  $('f-odd').value=(e.odds&&e.odds[pickSide])||'';$('betForm').scrollIntoView({behavior:'smooth'});$('f-stake').focus();
+});
+
+// --- boucle API
+async function lTick(){
+  try{
+    for(const sk of L.sports){
+      const meta=sportsMeta[sk]||{}, sport=SPORTMAP[meta.group]||(sk.startsWith('soccer')?'Football':sk.startsWith('basketball')?'Basket':sk.startsWith('tennis')?'Tennis':'Autre');
+      const [odds,scores]=await Promise.all([oget(sk+'/odds/','&regions=eu&markets=h2h&oddsFormat=decimal'),oget(sk+'/scores/').catch(()=>[])]);
+      odds.forEach(ev=>upsert({id:ev.id,sport,comp:ev.sport_title||meta.title,home:ev.home_team,away:ev.away_team,start:Date.parse(ev.commence_time),odds:avgOdds(ev)}));
+      scores.forEach(s=>{if(!LEV[s.id]&&!s.scores)return;
+        const g=n=>{const x=(s.scores||[]).find(q=>q.name===n);return x?+x.score:null;};
+        const sc=s.scores?{h:g(s.home_team),a:g(s.away_team)}:null;
+        upsert({id:s.id,sport,comp:s.sport_title||meta.title,home:s.home_team,away:s.away_team,start:Date.parse(s.commence_time),score:sc&&sc.h!=null?sc:null,completed:s.completed});});
+    }
+    lSave();lEvalAll();lRender();$('l-last').textContent='Dernière actualisation : '+new Date().toLocaleTimeString('fr-FR');lmsg('');
+  }catch(e){lmsg('⚠️ Erreur de chargement : '+esc(e.message)+'. Vérifie ta clé et ton quota.');}
+}
+function lStop(){clearInterval(lTimer);lTimer=null;$('l-start').textContent='▶️ Démarrer';$('l-demo').textContent='🎮 Mode démo';}
+function lStart(){
+  clearInterval(lTimer);demo=false;Object.keys(LEV).forEach(k=>{if(k.startsWith('demo'))delete LEV[k];});lAlerts=lAlerts.filter(a=>!a.id.startsWith('demo'));
+  if(!L.key){lmsg('Entre ta clé API (gratuite sur the-odds-api.com) ou essaie le 🎮 Mode démo.');return;}
+  if(!L.sports.length){lmsg('Choisis au moins une compétition (bouton « Charger les compétitions »).');return;}
+  lTick();lTimer=setInterval(lTick,L.interval*1000);$('l-start').textContent='⏸️ Arrêter';
+}
+$('l-start').onclick=()=>{if(lTimer&&!demo){lStop();return;}lStop();lStart();};
+// mémorise les cotes de départ (pour garder le favori d'avant-match après un rechargement)
+function lSave(){try{const keep={};Object.values(LEV).forEach(e=>{if(!e.id.startsWith('demo')&&Date.now()-e.start<2*864e5)keep[e.id]={id:e.id,open:e.open,openLive:e.openLive,start:e.start,home:e.home,away:e.away,hist:e.hist.slice(-60)};});localStorage.setItem(KEY+'.live',JSON.stringify(keep));}catch(e){}}
+try{const k=JSON.parse(localStorage.getItem(KEY+'.live'))||{};Object.values(k).forEach(e=>LEV[e.id]=Object.assign({completed:false},e));}catch(e){}
+
+// --- mode démo
+$('l-demo').onclick=()=>{
+  if(demo){lStop();demo=false;return;}
+  lStop();demo=true;LEV={};lAlerts=[];lSeen=new Set();
+  const now=Date.now(), M=[['Paris SG','Toulouse',1.35,5.2,8.5,25],['Real Madrid','Getafe',1.5,4.4,6.5,60],['Lyon','Lens',2.3,3.3,3.1,10],['Arsenal','Brentford',1.6,4.0,5.5,70]];
+  M.forEach((m,i)=>upsert({id:'demo'+i,sport:'Football',comp:'Démo',home:m[0],away:m[1],start:now-m[5]*6e4,odds:{h:m[2],d:m[3],a:m[4]},score:{h:0,a:0}}));Object.values(LEV).forEach(e=>e.openLive=false);
+  const tick=()=>{Object.values(LEV).forEach(e=>{
+    e.start-=4*6e4; const s={...e.score};
+    if(Math.random()<.18){const fav=e.open.h<e.open.a?'h':'a';const r=Math.random();s[r<.55?(fav==='h'?'a':'h'):fav]++;}
+    const diff=s.h-s.a, k=1+Math.random()*.06-.03;
+    const h=Math.max(1.02,+(e.open.h*Math.pow(1.9,-diff)*k).toFixed(2)), a=Math.max(1.02,+(e.open.a*Math.pow(1.9,diff)*k).toFixed(2));
+    upsert({id:e.id,home:e.home,away:e.away,start:e.start,score:s,odds:{h,d:+(e.open.d*(diff?1.6:0.85)).toFixed(2),a}});});
+    lEvalAll();lRender();$('l-last').textContent='Démo — chaque actualisation = 4 minutes de match';};
+  tick();lTimer=setInterval(tick,3000);$('l-demo').textContent='⏹️ Arrêter la démo';lmsg('🎮 Mode démo : matchs fictifs pour voir comment fonctionnent les alertes.',true);
+};
+renderSportList();lRender();
 
 resetForm();render();
 })();
