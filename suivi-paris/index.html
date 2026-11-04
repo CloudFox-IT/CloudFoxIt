@@ -118,6 +118,7 @@ select,input{max-width:100%}
       <button class="tab" data-cat="sport">⚽ Paris sportifs</button>
       <button class="tab" data-cat="turf">🐎 Turf (chevaux)</button>
       <button class="tab" data-view="live">📡 Live sport</button>
+      <button class="tab" data-view="mypage">⭐ Ma page turf</button>
       <button class="tab" data-view="board">📋 Tableau turf</button>
       <button class="tab" data-view="race">🔎 Analyse course</button>
       <button class="tab" data-view="poker">🃏 Poker</button>
@@ -293,6 +294,37 @@ select,input{max-width:100%}
       </div>
       <div id="cc-res"></div>
     </div>
+  </div>
+</div>
+<div id="mypageView" class="hidden">
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">⭐ Ma page turf</h2>
+      <div class="actions" style="margin:0">
+        <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="mp-date"></label>
+        <button class="btn primary" id="mp-load">📡 Charger / actualiser</button>
+      </div>
+    </div>
+    <div id="mp-msg"></div>
+    <div class="kpis" id="mp-kpis" style="margin:12px 0 0"></div>
+  </div>
+  <div class="card">
+    <h2>🏆 Les courses les plus importantes du jour</h2>
+    <div id="mp-top"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0">📂 Courses par catégorie</h2>
+      <select id="mp-sort"><option value="prix">Trier par allocation</option><option value="heure">Trier par heure</option></select>
+    </div>
+    <div class="tabs" id="mp-cats" style="margin:12px 0"></div>
+    <div class="tablewrap"><table id="mp-list"></table></div>
+  </div>
+  <div class="card">
+    <h2>✍️ Mes analyses</h2>
+    <div class="kpis" id="mp-score"></div>
+    <div class="tablewrap"><table id="mp-an"></table></div>
+    <p class="sub">Clique sur ✍️ à côté d'une course pour noter ton analyse et ton prono. Quand l'arrivée est connue (chargée automatiquement ou saisie à la main), l'appli compare ton prono et le sien.</p>
   </div>
 </div>
 <div id="boardView" class="hidden">
@@ -656,8 +688,8 @@ $('table').onclick=e=>{
 
 $('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
-  const v=t.dataset.view||'bets';['bets','race','live','poker','calc','board'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
-  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return; if(v==='board'){renderBoard();return;}
+  const v=t.dataset.view||'bets';['bets','race','live','poker','calc','board','mypage'].forEach(n=>$(n+'View').classList.toggle('hidden',n!==v));
+  if(v==='race'){if(cur)drawOdds();return;} if(v==='live'){lRender();return;} if(v==='poker'){renderPoker();return;} if(v==='calc')return; if(v==='board'){renderBoard();return;} if(v==='mypage'){renderMyPage();return;}
   cat=t.dataset.cat;
   if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
@@ -683,7 +715,7 @@ $('importFile').onchange=async e=>{
     if(confirm(`${nw.length} nouveau(x) pari(s) à ajouter (${d.bets.length-nw.length} déjà présent(s)).${d.favs?' Favoris et courses seront aussi fusionnés.':''} Continuer ?`)){
       const wasEmpty=!state.bets.length;
       nw.forEach(b=>{b.created=b.created||Date.now();state.bets.push(b);});
-      Object.assign(state.races,d.races||{});if(d.poker&&Array.isArray(d.poker.sessions)){const pids=new Set(PK().sessions.map(x=>x.id));d.poker.sessions.filter(x=>x&&x.id&&!pids.has(x.id)).forEach(x=>PK().sessions.push(x));if(wasEmpty&&d.poker.start!=null){PK().start=d.poker.start;$('pk-start').value=PK().start;}}Object.entries(d.favs||{}).forEach(([k,v])=>{if(!state.favs[k])state.favs[k]=v;});
+      Object.assign(state.races,d.races||{});Object.entries(d.myAn||{}).forEach(([k,v])=>{if(!state.myAn[k])state.myAn[k]=v;});if(d.poker&&Array.isArray(d.poker.sessions)){const pids=new Set(PK().sessions.map(x=>x.id));d.poker.sessions.filter(x=>x&&x.id&&!pids.has(x.id)).forEach(x=>PK().sessions.push(x));if(wasEmpty&&d.poker.start!=null){PK().start=d.poker.start;$('pk-start').value=PK().start;}}Object.entries(d.favs||{}).forEach(([k,v])=>{if(!state.favs[k])state.favs[k]=v;});
       if(wasEmpty&&d.bankroll!=null){state.bankroll=d.bankroll;state.report=d.report||0;$('bankroll').value=state.bankroll;$('report').value=state.report;}
       fillSaved();renderFavs();save();render();}
   }catch(_){alert('Fichier invalide.');}
@@ -1324,15 +1356,21 @@ function calcAll(){caRows();calcHedge();calcDutch();if(!$('ck-bank').value)$('ck
 calcAll();
 
 // =================== TABLEAU TURF ===================
+function raceMeta(race,r,c){
+  race.heure=c.heureDepart||race.heure;race.prix=c.montantPrix||race.prix||0;race.pays=(r.pays&&r.pays.code)||race.pays||'';
+  race.quinte=(c.paris||[]).some(x=>/QUINTE/.test(x.typePari||''))||/QUINTE/.test(c.categorieParticularite||'')||!!race.quinte;
+  if(Array.isArray(c.ordreArrivee)&&c.ordreArrivee.length)race.arrivee=c.ordreArrivee.flat().map(Number).filter(Boolean).slice(0,5);
+}
 async function loadDay(date,box,refreshOnlyUpcoming){
   box.innerHTML='<div class="msg ok">Chargement du programme…</div>';
   const d=await api(pmuDate(date)),Rs=(d.programme&&d.programme.reunions)||[];const jobs=[];
   Rs.forEach(r=>(r.courses||[]).forEach(c=>{const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,old=state.races[key];
+    if(old)raceMeta(old,r,c);
     if(refreshOnlyUpcoming&&old&&old.partants&&c.heureDepart&&c.heureDepart<Date.now()-10*6e4)return;jobs.push({r,c});}));
   let done=0;const total=jobs.length;
   const worker=async()=>{while(jobs.length){const {r,c}=jobs.shift();try{
     const key=`${date}-R${r.numOfficiel}C${c.numOrdre}`,race=state.races[key]||{key,date,R:r.numOfficiel,C:c.numOrdre,hippo:(r.hippodrome&&r.hippodrome.libelleCourt)||'',libelle:c.libelle||'',disc:DISC[c.discipline]||c.discipline||'',distance:c.distance,heure:c.heureDepart,auto:true,snaps:[]};
-    race.heure=c.heureDepart||race.heure;race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);race.snaps=race.snaps.slice(-40);recordFavs(race);state.races[key]=race;}catch(e){}
+    raceMeta(race,r,c);race.partants=await fetchPartants(date,r.numOfficiel,c.numOrdre);snapshot(race,race.partants);race.snaps=race.snaps.slice(-40);recordFavs(race);state.races[key]=race;}catch(e){}
     box.innerHTML=`<div class="msg ok">Chargement des courses… ${++done}/${total}</div>`;}};
   await Promise.all([1,2,3,4,5,6].map(worker));
   const lim=new Date(Date.now()-21*864e5).toISOString().slice(0,10);
@@ -1401,6 +1439,79 @@ let tbTimer=null;$('tb-auto').onchange=()=>{clearInterval(tbTimer);tbTimer=$('tb
 ['tb-reu','tb-disc','tb-when','tb-fav','tb-moves','tb-date'].forEach(i=>$(i).addEventListener('change',renderBoard));
 document.getElementById('boardView').addEventListener('click',e=>{const t=e.target.closest('[data-tbopen]');if(!t)return;document.querySelector('.tab[data-view="race"]').click();openRace(t.dataset.tbopen);});
 renderBoard();
+
+// =================== MA PAGE TURF ===================
+state.myAn=state.myAn||{};
+let mpCat='all';
+const CATS={all:'Toutes',plat:'🏇 Plat',trot:'🐎 Trot',obstacle:'🪵 Obstacle',etranger:'🌍 Étranger'};
+function catOf(r){if(r.pays&&r.pays!=='FRA')return 'etranger';return /Trot/.test(r.disc)?'trot':r.disc==='Plat'?'plat':r.disc==='Obstacle'?'obstacle':'plat';}
+const numsOf=s=>String(s||'').split(/[^0-9]+/).map(Number).filter(Boolean);
+function arrOf(r){const a=state.myAn[r.key];return (a&&numsOf(a.arr).length?numsOf(a.arr):r.arrivee)||null;}
+function hit(pr,arr){if(!pr||!pr.length||!arr||!arr.length)return null;const t3=arr.slice(0,3);return {win:pr[0]===arr[0],place:t3.includes(pr[0]),inTop3:pr.slice(0,3).filter(n=>t3.includes(n)).length};}
+function hitHtml(h){if(!h)return '<span class="sub">—</span>';return h.win?'<span class="pill s-gagne">✅ Gagnant</span>':h.place?'<span class="pill s-encours">🥉 Placé</span>':'<span class="pill s-perdu">❌</span>';}
+const appPick=r=>{const A=analyseRace(r);return A?A.H.slice(0,A.n>=8?4:3).map(x=>x.p.num):null;};
+function eurK(n){return n?(n>=1e3?Math.round(n/1e3).toLocaleString('fr-FR')+' k€':n+' €'):'—';}
+function mpRaces(){const d=$('mp-date').value;return Object.values(state.races).filter(r=>r.date===d&&r.auto&&r.R);}
+function raceRow(r,i){
+  const favs=(r.partants||[]).filter(p=>isFav(p.nom)),ap=appPick(r),me=state.myAn[r.key],mp=me?numsOf(me.prono):[],arr=arrOf(r);
+  return `<tr class="${favs.length?'fav':''}"><td>${r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''}</td>
+    <td><b>R${r.R}C${r.C}</b> ${esc(r.hippo)}${r.pays&&r.pays!=='FRA'?` <span class="sub">(${esc(r.pays)})</span>`:''}</td>
+    <td class="desc"><b>${esc(r.libelle)}</b>${r.quinte?' <span class="pill s-encours">Quinté+</span>':''}<div class="sub">${esc(r.disc)}${r.distance?' · '+r.distance+' m':''} · ${(r.partants||[]).filter(p=>!p.np).length} partants</div></td>
+    <td class="num"><b>${eurK(r.prix)}</b></td>
+    <td>${favs.length?favs.map(p=>`⭐ <b>${p.num}</b> ${esc(p.nom)}`).join('<br>'):'<span class="sub">—</span>'}</td>
+    <td class="num">${ap?'<b>'+ap.join(' - ')+'</b>':'—'}${arr?'<div>'+hitHtml(hit(ap,arr))+'</div>':''}</td>
+    <td class="num">${mp.length?'<b>'+mp.join(' - ')+'</b>':'<span class="sub">—</span>'}${arr&&mp.length?'<div>'+hitHtml(hit(mp,arr))+'</div>':''}</td>
+    <td class="num">${arr?'<b>'+arr.slice(0,5).join(' - ')+'</b>':'<span class="sub">—</span>'}</td>
+    <td style="white-space:nowrap"><button class="btn small" data-mpedit="${esc(r.key)}" title="Mon analyse">✍️</button> <button class="btn small" data-tbopen="${esc(r.key)}" title="Analyse détaillée">🔎</button></td></tr>
+    <tr class="hidden" data-mped="${esc(r.key)}"><td colspan="9">
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px">
+        <label>Mon prono (n° dans l'ordre) <input data-f="prono" value="${esc(me&&me.prono||'')}" placeholder="5 - 3 - 8 - 1"></label>
+        <label>Confiance <select data-f="conf">${['','★','★★','★★★','★★★★','★★★★★'].map(x=>`<option ${me&&me.conf===x?'selected':''}>${x}</option>`).join('')}</select></label>
+        <label>Arrivée (si pas chargée) <input data-f="arr" value="${esc(me&&me.arr||'')}" placeholder="5 - 8 - 3"></label>
+      </div>
+      <label style="margin-top:8px">Mon analyse <textarea data-f="txt" rows="3" placeholder="Terrain, forme, engagement, jockey, ferrure…">${esc(me&&me.txt||'')}</textarea></label>
+      <div class="actions"><button class="btn primary small" data-mpsave="${esc(r.key)}">Enregistrer</button></div></td></tr>`;
+}
+const HEAD='<thead><tr><th>Heure</th><th>Réunion</th><th>Course</th><th class="num">Allocation</th><th>Mes favoris</th><th class="num">Prono appli</th><th class="num">Mon prono</th><th class="num">Arrivée</th><th></th></tr></thead><tbody>';
+function renderMyPage(){
+  const all=mpRaces(),byCat={};all.forEach(r=>(byCat[catOf(r)]=byCat[catOf(r)]||[]).push(r));
+  const favN=all.reduce((a,r)=>a+(r.partants||[]).filter(p=>isFav(p.nom)).length,0),tot=all.reduce((a,r)=>a+(r.prix||0),0);
+  $('mp-kpis').innerHTML=[['Courses',all.length],['Plat',(byCat.plat||[]).length],['Trot',(byCat.trot||[]).length],['Obstacle',(byCat.obstacle||[]).length],['Étranger',(byCat.etranger||[]).length],['Mes favoris engagés',favN],['Allocations du jour',eurK(tot)]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  const top=[...all].sort((a,b)=>(b.quinte-a.quinte)||(b.prix||0)-(a.prix||0)).slice(0,5);
+  $('mp-top').innerHTML=top.length?`<div class="tablewrap"><table>${HEAD}${top.map(raceRow).join('')}</tbody></table></div>`:'<p class="empty">Clique sur « Charger / actualiser » pour voir les courses du jour.</p>';
+  $('mp-cats').innerHTML=Object.entries(CATS).map(([k,l])=>`<button class="tab ${k===mpCat?'active':''}" data-mpcat="${k}">${l} (${k==='all'?all.length:(byCat[k]||[]).length})</button>`).join('');
+  const L=(mpCat==='all'?all:byCat[mpCat]||[]).sort($('mp-sort').value==='prix'?(a,b)=>(b.prix||0)-(a.prix||0)||(a.heure||0)-(b.heure||0):(a,b)=>(a.heure||0)-(b.heure||0));
+  $('mp-list').innerHTML=HEAD+(L.length?L.map(raceRow).join(''):'<tr><td colspan="9" class="empty">Aucune course dans cette catégorie.</td></tr>')+'</tbody>';
+  renderAnalyses();
+}
+function renderAnalyses(){
+  const E=Object.entries(state.myAn).filter(([k,a])=>a.prono||a.txt).map(([k,a])=>({k,a,r:state.races[k]})).sort((x,y)=>(y.a.t||0)-(x.a.t||0));
+  let me=[0,0,0],ap=[0,0,0];
+  E.forEach(({a,r})=>{if(!r)return;const arr=arrOf(r);if(!arr)return;const h=hit(numsOf(a.prono),arr),g=hit(appPick(r),arr);
+    if(h){me[0]++;me[1]+=h.win;me[2]+=h.place;}if(g){ap[0]++;ap[1]+=g.win;ap[2]+=g.place;}});
+  const p=(x,n)=>n?Math.round(x/n*100)+' %':'—';
+  $('mp-score').innerHTML=[['Analyses',E.length],['Courses terminées',me[0]],['Moi : gagnant trouvé',p(me[1],me[0])],['Moi : placé',p(me[2],me[0])],['Appli (mêmes courses) : gagnant',p(ap[1],ap[0])],['Appli (mêmes courses) : placé',p(ap[2],ap[0])]]
+    .map(([l,v])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  let h='<thead><tr><th>Date</th><th>Course</th><th class="num">Mon prono</th><th>Conf.</th><th class="num">Arrivée</th><th>Résultat</th><th>Mon analyse</th><th></th></tr></thead><tbody>';
+  if(!E.length)h+='<tr><td colspan="8" class="empty">Pas encore d\'analyse. Clique sur ✍️ à côté d\'une course.</td></tr>';
+  E.forEach(({k,a,r})=>{const arr=r?arrOf(r):null;h+=`<tr><td>${r?new Date(r.date+'T12:00').toLocaleDateString('fr-FR'):''}</td><td>${r?`R${r.R}C${r.C} ${esc(r.hippo)}<div class="sub">${esc(r.libelle)}</div>`:esc(k)}</td>
+    <td class="num"><b>${esc(numsOf(a.prono).join(' - '))}</b></td><td>${esc(a.conf||'')}</td><td class="num">${arr?arr.slice(0,5).join(' - '):'<span class="sub">à venir</span>'}</td>
+    <td>${arr?hitHtml(hit(numsOf(a.prono),arr)):'—'}</td><td class="desc">${esc(a.txt||'')}</td><td><button class="btn small danger" data-mpdel="${esc(k)}">🗑️</button></td></tr>`;});
+  $('mp-an').innerHTML=h+'</tbody>';
+}
+$('mp-date').value=new Date().toISOString().slice(0,10);
+$('mp-load').onclick=async()=>{try{await loadDay($('mp-date').value,$('mp-msg'),true);$('mp-msg').innerHTML=`<div class="msg ok">✅ À jour (${new Date().toLocaleTimeString('fr-FR')}).</div>`;}catch(e){$('mp-msg').innerHTML='<div class="msg">⚠️ Impossible de charger le programme PMU ('+esc(e.message)+').</div>';}renderMyPage();};
+['mp-date','mp-sort'].forEach(i=>$(i).addEventListener('change',renderMyPage));
+document.getElementById('mypageView').addEventListener('click',e=>{
+  const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.mpcat){mpCat=t.dataset.mpcat;renderMyPage();return;}
+  if(t.dataset.tbopen){document.querySelector('.tab[data-view="race"]').click();openRace(t.dataset.tbopen);return;}
+  if(t.dataset.mpedit){const row=t.closest('tr').nextElementSibling;row.classList.toggle('hidden');return;}
+  if(t.dataset.mpsave){const box=t.closest('tr'),a={t:Date.now()};box.querySelectorAll('[data-f]').forEach(i=>a[i.dataset.f]=i.value.trim());state.myAn[t.dataset.mpsave]=a;save();renderMyPage();return;}
+  if(t.dataset.mpdel){delete state.myAn[t.dataset.mpdel];save();renderMyPage();}
+});
+renderMyPage();
 
 resetForm();render();
 })();
