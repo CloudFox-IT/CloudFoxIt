@@ -72,19 +72,42 @@ canvas{width:100%;height:220px;display:block}
 .empty{color:var(--muted);text-align:center;padding:24px}
 .hidden{display:none!important}
 .quick{display:flex;gap:4px}
+.mus{display:inline-flex;gap:2px;flex-wrap:wrap}
+.mus i{font-style:normal;font-size:11px;font-weight:700;min-width:18px;text-align:center;padding:1px 3px;border-radius:4px;background:var(--void-soft);color:var(--void)}
+.mus i.p1{background:var(--win-soft);color:var(--win)}
+.mus i.p2{background:var(--accent-soft);color:var(--accent)}
+.mus i.px{background:var(--loss-soft);color:var(--loss)}
+.bar{height:6px;border-radius:3px;background:var(--accent);margin-top:3px}
+.score{display:inline-block;min-width:34px;text-align:center;padding:2px 6px;border-radius:6px;font-weight:700;font-size:13px}
+.star{background:none;border:0;cursor:pointer;font-size:18px;padding:0 4px;color:var(--muted)}
+.star.on{color:#e5a50a}
+tr.np td{opacity:.45;text-decoration:line-through}
+tr.fav td{background:var(--pend-soft)}
+.cotein{width:70px;padding:4px 6px;text-align:right}
+.trend-up{color:var(--loss)} .trend-down{color:var(--win)}
+.msg{padding:10px 12px;border-radius:8px;background:var(--pend-soft);color:var(--pend);margin:10px 0;font-size:14px}
+.msg.ok{background:var(--win-soft);color:var(--win)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;margin-top:8px;color:var(--muted)}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--c);margin-right:4px;vertical-align:-1px}
+select,input{max-width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font:inherit;color:var(--text);font-size:13px}
+.chip.active{border-color:var(--accent);background:var(--accent-soft)}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
-    <h1>🏆 Suivi Paris — Sport & Turf</h1>
+    <h1>🏆 Suivi Paris — Sport &amp; Turf</h1>
     <div class="tabs" id="tabs">
       <button class="tab active" data-cat="all">Tous</button>
       <button class="tab" data-cat="sport">⚽ Paris sportifs</button>
       <button class="tab" data-cat="turf">🐎 Turf (chevaux)</button>
+      <button class="tab" data-view="race">🔎 Analyse course</button>
     </div>
   </header>
 
+  <div id="betsView">
   <div class="kpis" id="kpis"></div>
 
   <div class="card">
@@ -186,6 +209,64 @@ canvas{width:100%;height:220px;display:block}
     </div>
     <p class="sub">Les données sont enregistrées dans ce navigateur. Fais une sauvegarde JSON de temps en temps pour ne rien perdre.</p>
   </div>
+  </div>
+<div id="raceView" class="hidden">
+  <div class="card">
+    <h2>🔎 Charger une course</h2>
+    <div class="filters">
+      <label style="flex-direction:row;align-items:center;gap:6px">Date <input type="date" id="r-date"></label>
+      <button class="btn primary" id="r-load">📡 Charger le programme PMU</button>
+      <select id="r-saved"><option value="">— Courses déjà analysées —</option></select>
+    </div>
+    <div id="r-msg"></div>
+    <div id="r-prog"></div>
+    <details style="margin-top:12px">
+      <summary style="cursor:pointer;color:var(--accent)">✍️ Saisie manuelle des partants (si le chargement auto ne marche pas)</summary>
+      <div class="grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px">
+        <label>Hippodrome <input id="m-hippo" list="hippos"></label>
+        <label>Course <input id="m-race" placeholder="R1C4 — Prix …"></label>
+        <label>Discipline <select id="m-disc"><option>Trot attelé</option><option>Trot monté</option><option>Plat</option><option>Obstacle</option></select></label>
+      </div>
+      <label style="margin-top:10px">Partants — une ligne par cheval : <b>n° ; nom ; jockey ; entraîneur ; musique ; cote</b>
+        <textarea id="m-list" rows="6" placeholder="1 ; Idao de Tillard ; C. Thomain ; T. Duvaldestin ; 1a1a2aDa1a ; 3.5&#10;2 ; Hooker Berry ; J.-M. Bazire ; N. Bazire ; 3a1a1a5a ; 6&#10;…"></textarea>
+      </label>
+      <div class="actions"><button class="btn primary" id="m-go">Analyser cette course</button></div>
+    </details>
+  </div>
+
+  <div id="r-analysis" class="hidden">
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <h2 id="r-title" style="margin:0"></h2>
+        <div class="actions" style="margin:0">
+          <button class="btn" id="r-refresh">🔄 Actualiser les cotes</button>
+          <button class="btn" id="r-snap">📸 Enregistrer les cotes saisies</button>
+          <button class="btn primary" id="r-bet">🎟️ Parier sur la sélection</button>
+        </div>
+      </div>
+      <div class="sub" id="r-sub"></div>
+      <div class="tablewrap" style="margin-top:10px"><table id="r-table"></table></div>
+      <p class="sub">⭐ = ajouter aux favoris · Coche des chevaux puis « Parier sur la sélection » pour pré-remplir un pari turf. <b>Forme</b> = note /10 calculée sur les 5 dernières courses de la musique (récentes = plus de poids). <b>Proba</b> = probabilité implicite tirée de la cote.</p>
+    </div>
+    <div class="two">
+      <div class="card">
+        <h2>📉 Courbe des cotes</h2>
+        <canvas id="r-chart"></canvas>
+        <div class="legend" id="r-legend"></div>
+      </div>
+      <div class="card">
+        <h2>🧠 Synthèse</h2>
+        <div id="r-synth"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>⭐ Mes favoris</h2>
+    <div class="tablewrap"><table id="favTable"></table></div>
+    <div class="actions"><input id="fav-new" placeholder="Nom du cheval"><button class="btn" id="fav-add">Ajouter</button></div>
+  </div>
+</div>
 </div>
 
 <datalist id="books"><option>PMU</option><option>Winamax</option><option>Betclic</option><option>Unibet</option><option>Parions Sport (FDJ)</option><option>ZEbet</option><option>Genybet</option><option>Bwin</option><option>PokerStars Sports</option></datalist>
@@ -359,8 +440,11 @@ $('table').onclick=e=>{
   }
 };
 
-$('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;cat=t.dataset.cat;
+$('tabs').onclick=e=>{const t=e.target.closest('.tab');if(!t)return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+  const race=t.dataset.view==='race';$('raceView').classList.toggle('hidden',!race);$('betsView').classList.toggle('hidden',race);
+  if(race){if(cur)drawOdds();return;}
+  cat=t.dataset.cat;
   if(!$('f-id').value&&cat!=='all'){$('f-cat').value=cat;toggleCat();}render();};
 ['q','fStatus','fPeriod'].forEach(id=>$(id).addEventListener('input',render));
 $('bankroll').value=state.bankroll;
@@ -379,11 +463,216 @@ $('importBtn').onclick=()=>$('importFile').click();
 $('importFile').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{const d=JSON.parse(await f.text());if(!Array.isArray(d.bets))throw 0;
-    if(confirm(`Importer ${d.bets.length} paris ? (remplace les données actuelles)`)){state=d;$('bankroll').value=state.bankroll;save();render();}
+    if(confirm(`Importer ${d.bets.length} paris ? (remplace les données actuelles)`)){state=d;state.races=state.races||{};state.favs=state.favs||{};fillSaved();renderFavs();$('bankroll').value=state.bankroll;save();render();}
   }catch(_){alert('Fichier invalide.');}
   e.target.value='';
 };
 window.addEventListener('resize',()=>drawChart(filtered()));
+
+// =================== ANALYSE COURSE ===================
+state.races=state.races||{}; state.favs=state.favs||{};
+const API='https://online.turfinfo.api.pmu.fr/rest/client/1/programme/';
+const COLORS=['#2563eb','#d9480f','#2f9e44','#ae3ec9','#e8590c','#0c8599','#c2255c','#5f3dc4','#868e96','#f08c00'];
+let cur=null, prog=null;
+const pmuDate=d=>d.slice(8,10)+d.slice(5,7)+d.slice(0,4);
+const DISC={ATTELE:'Trot attelé',MONTE:'Trot monté',PLAT:'Plat',HAIE:'Obstacle',STEEPLECHASE:'Obstacle',CROSS:'Obstacle'};
+const fkey=n=>String(n||'').trim().toUpperCase();
+const isFav=n=>!!state.favs[fkey(n)];
+function msg(t,ok){$('r-msg').innerHTML=t?`<div class="msg ${ok?'ok':''}">${t}</div>`:'';}
+
+function parseMus(m){ // "1a2a(25)Da0a" -> [{p:'1',d:'a'},...] plus récent d'abord
+  return [...String(m||'').replace(/\(\d+\)/g,'').matchAll(/([0-9DATR])([a-z])/gi)].map(x=>({p:x[1].toUpperCase(),d:x[2].toLowerCase()}));
+}
+function formScore(m){
+  const r=parseMus(m).slice(0,5); if(!r.length) return null;
+  const pts={1:10,2:8,3:6.5,4:5,5:4,6:2.5,7:2,8:1.5,9:1};
+  let s=0,w=0; r.forEach((x,i)=>{const wt=1-i*0.15; s+=(pts[x.p]||0)*wt; w+=wt;});
+  return Math.round(s/w*10)/10;
+}
+function musHtml(m){
+  const r=parseMus(m).slice(0,8); if(!r.length) return '<span class="sub">—</span>';
+  return '<span class="mus">'+r.map(x=>`<i class="${x.p==='1'?'p1':/[23]/.test(x.p)?'p2':/[DATR0]/.test(x.p)?'px':''}">${x.p}${x.d}</i>`).join('')+'</span>';
+}
+function scoreColor(s){return s==null?'':s>=7?'s-gagne':s>=4.5?'s-encours':'s-perdu';}
+
+async function api(path){const r=await fetch(API+path);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+
+$('r-date').value=new Date().toISOString().slice(0,10);
+$('r-load').onclick=async()=>{
+  msg('Chargement du programme…',true);$('r-prog').innerHTML='';
+  try{
+    const d=await api(pmuDate($('r-date').value));
+    prog=(d.programme&&d.programme.reunions)||[];
+    if(!prog.length) throw new Error('vide');
+    msg('');
+    $('r-prog').innerHTML=prog.map(r=>`<div style="margin:10px 0 4px"><b>R${r.numOfficiel} — ${esc(r.hippodrome&&(r.hippodrome.libelleCourt||r.hippodrome.libelleLong)||'')}</b></div><div class="chips">`+
+      (r.courses||[]).map(c=>`<button class="chip" data-r="${r.numOfficiel}" data-c="${c.numOrdre}">C${c.numOrdre} · ${c.heureDepart?new Date(c.heureDepart).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):''} · ${esc(c.libelle||'')} <span class="sub">${esc(DISC[c.discipline]||c.discipline||'')} ${c.distance?c.distance+'m':''} ${c.nombreDeclaresPartants?'· '+c.nombreDeclaresPartants+' part.':''}</span></button>`).join('')+'</div>').join('');
+  }catch(e){
+    msg('⚠️ Impossible de charger le programme automatiquement ('+esc(e.message)+'). Le service PMU bloque peut-être l\'accès depuis ce navigateur. Utilise la <b>saisie manuelle</b> ci-dessous : l\'analyse, les favoris et la courbe des cotes fonctionnent pareil.');
+  }
+};
+$('r-prog').onclick=e=>{const b=e.target.closest('.chip');if(b)loadCourse(+b.dataset.r,+b.dataset.c);};
+
+async function fetchPartants(date,R,C){
+  const d=await api(`${pmuDate(date)}/R${R}/C${C}/participants`);
+  return (d.participants||[]).map(p=>({num:p.numPmu,nom:p.nom,jockey:p.driver||p.jockey||'',entr:p.entraineur||'',mus:p.musique||'',
+    np:p.statut&&p.statut!=='PARTANT',cote:(p.dernierRapportDirect&&p.dernierRapportDirect.rapport)||(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null,
+    ref:(p.dernierRapportReference&&p.dernierRapportReference.rapport)||null}));
+}
+async function loadCourse(R,C){
+  const date=$('r-date').value, reu=prog.find(r=>r.numOfficiel===R), co=reu.courses.find(c=>c.numOrdre===C);
+  msg('Chargement des partants…',true);
+  try{
+    const parts=await fetchPartants(date,R,C);
+    const key=`${date}-R${R}C${C}`, old=state.races[key];
+    const race=old||{key,date,R,C,hippo:(reu.hippodrome&&reu.hippodrome.libelleCourt)||'',libelle:co.libelle||'',disc:DISC[co.discipline]||co.discipline||'',
+      distance:co.distance,heure:co.heureDepart,auto:true,snaps:[]};
+    race.partants=parts; snapshot(race,parts);
+    state.races[key]=race; save(); msg(''); openRace(key);
+  }catch(e){msg('⚠️ Impossible de charger les partants ('+esc(e.message)+'). Utilise la saisie manuelle.');}
+}
+function snapshot(race,parts){
+  const cotes={};parts.forEach(p=>{if(+p.cote>0&&!p.np)cotes[p.num]=+p.cote;});
+  if(!Object.keys(cotes).length) return;
+  const last=race.snaps[race.snaps.length-1];
+  if(last&&JSON.stringify(last.c)===JSON.stringify(cotes)) return;
+  race.snaps.push({t:Date.now(),c:cotes});
+}
+
+$('m-go').onclick=()=>{
+  const lines=$('m-list').value.split(/\n/).map(l=>l.trim()).filter(Boolean);
+  const parts=lines.map((l,i)=>{
+    let f=l.split(/\s*[;\t]\s*/);
+    if(f.length<2){const m=l.match(/^(\d+)\s+(.+?)(?:\s+(\d+(?:[.,]\d+)?))?$/);f=m?[m[1],m[2],'','','',m[3]||'']:[i+1,l];}
+    return {num:+f[0]||i+1,nom:f[1]||'',jockey:f[2]||'',entr:f[3]||'',mus:f[4]||'',cote:+(String(f[5]||'').replace(',','.'))||null,np:false};
+  });
+  if(!parts.length){alert('Ajoute au moins un partant.');return;}
+  const date=$('r-date').value, race_=$('m-race').value.trim()||'Course';
+  const key=`${date}-M-${race_}`, race=state.races[key]||{key,date,hippo:$('m-hippo').value.trim(),libelle:race_,disc:$('m-disc').value,auto:false,snaps:[]};
+  race.partants=parts; snapshot(race,parts); state.races[key]=race; save(); openRace(key);
+};
+
+function openRace(key){cur=state.races[key];$('r-analysis').classList.remove('hidden');fillSaved();$('r-saved').value=key;renderRace();$('r-analysis').scrollIntoView({behavior:'smooth'});}
+function fillSaved(){
+  const ks=Object.keys(state.races).sort().reverse();
+  $('r-saved').innerHTML='<option value="">— Courses déjà analysées ('+ks.length+') —</option>'+ks.map(k=>{const r=state.races[k];return `<option value="${esc(k)}">${new Date(r.date+'T12:00').toLocaleDateString('fr-FR')} · ${r.R?'R'+r.R+'C'+r.C+' ':''}${r.hippo?esc(r.hippo)+' · ':''}${esc(r.libelle)}</option>`;}).join('');
+}
+$('r-saved').onchange=()=>{if($('r-saved').value)openRace($('r-saved').value);};
+
+function renderRace(){
+  const r=cur, P=r.partants.filter(p=>!p.np&&+p.cote>0);
+  const inv=P.reduce((a,p)=>a+1/p.cote,0);
+  const rank={};[...P].sort((a,b)=>a.cote-b.cote).forEach((p,i)=>rank[p.num]=i+1);
+  const first=r.snaps[0]&&r.snaps[0].c||{};
+  $('r-title').textContent=`${r.R?'R'+r.R+'C'+r.C+' · ':''}${r.hippo?r.hippo+' · ':''}${r.libelle}`;
+  $('r-sub').textContent=[new Date(r.date+'T12:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'}),r.heure?new Date(r.heure).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}):'',r.disc,r.distance?r.distance+' m':'',r.partants.length+' partants',r.snaps.length+' relevé(s) de cotes'].filter(Boolean).join(' · ');
+  $('r-refresh').classList.toggle('hidden',!r.auto);
+  const maxP=Math.max(...P.map(p=>1/p.cote/inv),0.01);
+  let h='<thead><tr><th></th><th>✔</th><th class="num">N°</th><th>Cheval</th><th>Jockey / Driver</th><th>Entraîneur</th><th>Musique</th><th class="num">Forme</th><th class="num">Cote</th><th class="num">Évol.</th><th class="num">Proba</th><th class="num">Rang</th></tr></thead><tbody>';
+  for(const p of [...r.partants].sort((a,b)=>a.num-b.num)){
+    const sc=formScore(p.mus), pr=p.cote&&!p.np?1/p.cote/inv:null, f0=first[p.num];
+    let ev='—'; if(f0&&p.cote&&f0!==p.cote){const d=(p.cote-f0)/f0;ev=`<span class="${d>0?'trend-up':'trend-down'}">${d>0?'▲':'▼'} ${f0}→${p.cote}</span>`;}
+    h+=`<tr class="${p.np?'np':''} ${isFav(p.nom)?'fav':''}">
+      <td><button class="star ${isFav(p.nom)?'on':''}" data-star="${esc(p.nom)}" title="Favori">${isFav(p.nom)?'★':'☆'}</button></td>
+      <td><input type="checkbox" class="sel" value="${p.num}" ${p.np?'disabled':''}></td>
+      <td class="num"><b>${p.num}</b></td><td><b>${esc(p.nom)}</b>${p.np?' <span class="sub">NP</span>':''}${isFav(p.nom)&&state.favs[fkey(p.nom)].note?`<div class="sub">📝 ${esc(state.favs[fkey(p.nom)].note)}</div>`:''}</td>
+      <td>${esc(p.jockey)}</td><td>${esc(p.entr)}</td><td>${musHtml(p.mus)}</td>
+      <td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td>
+      <td class="num"><input class="cotein" type="number" step="0.1" min="1" data-cote="${p.num}" value="${p.cote||''}" ${p.np?'disabled':''}></td>
+      <td class="num">${ev}</td>
+      <td class="num">${pr==null?'—':(pr*100).toFixed(1)+' %<div class="bar" style="width:'+Math.round(pr/maxP*60)+'px;margin-left:auto"></div>'}</td>
+      <td class="num">${rank[p.num]?(rank[p.num]===1?'🥇':rank[p.num]===2?'🥈':rank[p.num]===3?'🥉':rank[p.num]):'—'}</td></tr>`;
+  }
+  $('r-table').innerHTML=h+'</tbody>';
+  renderSynth(P,inv);drawOdds();
+}
+
+function renderSynth(P,inv){
+  if(!P.length){$('r-synth').innerHTML='<p class="empty">Saisis des cotes pour voir la synthèse.</p>';return;}
+  const byCote=[...P].sort((a,b)=>a.cote-b.cote), byForm=[...P].filter(p=>formScore(p.mus)!=null).sort((a,b)=>formScore(b.mus)-formScore(a.mus));
+  const first=cur.snaps[0]&&cur.snaps[0].c||{};
+  const moves=P.filter(p=>first[p.num]).map(p=>({p,d:(p.cote-first[p.num])/first[p.num]}));
+  const down=moves.filter(m=>m.d<-0.1).sort((a,b)=>a.d-b.d).slice(0,3), up=moves.filter(m=>m.d>0.15).sort((a,b)=>b.d-a.d).slice(0,3);
+  // "value" = bonne forme mais cote élevée
+  const value=byForm.filter(p=>formScore(p.mus)>=6.5&&p.cote>=8).slice(0,3);
+  const lst=a=>a.map(p=>`<b>${p.num}</b> ${esc(p.nom)} <span class="sub">(${p.cote})</span>`).join(', ')||'<span class="sub">—</span>';
+  const fav=P.filter(p=>isFav(p.nom));
+  $('r-synth').innerHTML=`<table>
+    <tr><td>🥇 Favoris (cote)</td><td class="desc">${lst(byCote.slice(0,3))}</td></tr>
+    <tr><td>📈 Meilleure forme</td><td class="desc">${lst(byForm.slice(0,3))}</td></tr>
+    <tr><td>💎 Outsiders en forme</td><td class="desc">${lst(value)}</td></tr>
+    <tr><td>🔥 Cotes qui baissent</td><td class="desc">${down.map(m=>`<b>${m.p.num}</b> ${esc(m.p.nom)} <span class="pos">${(m.d*100).toFixed(0)} %</span>`).join(', ')||'<span class="sub">— (il faut plusieurs relevés)</span>'}</td></tr>
+    <tr><td>🧊 Cotes qui montent</td><td class="desc">${up.map(m=>`<b>${m.p.num}</b> ${esc(m.p.nom)} <span class="neg">+${(m.d*100).toFixed(0)} %</span>`).join(', ')||'<span class="sub">—</span>'}</td></tr>
+    <tr><td>⭐ Mes favoris engagés</td><td class="desc">${lst(fav)}</td></tr>
+    <tr><td>📊 Marge de l'opérateur</td><td class="desc">${((inv-1)*100).toFixed(1)} %</td></tr>
+  </table>`;
+}
+
+function drawOdds(){
+  const c=$('r-chart'),dpr=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;
+  c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);
+  const cs=getComputedStyle(document.documentElement),col=v=>cs.getPropertyValue(v).trim();
+  const S=cur.snaps; x.font='12px system-ui';x.fillStyle=col('--muted');$('r-legend').innerHTML='';
+  if(S.length<2){x.textAlign='center';x.fillText(S.length?'Actualise ou ré-enregistre les cotes plus tard pour voir la courbe':'Aucune cote enregistrée',w/2,h/2);return;}
+  const last=S[S.length-1].c;
+  let nums=Object.keys(last).sort((a,b)=>last[a]-last[b]).slice(0,6);
+  cur.partants.forEach(p=>{if(isFav(p.nom)&&last[p.num]&&!nums.includes(String(p.num)))nums.push(String(p.num));});
+  const vals=S.flatMap(s=>nums.map(n=>s.c[n]).filter(Boolean)), max=Math.max(...vals)*1.05, min=Math.max(1,Math.min(...vals)*0.95);
+  const L=40,R=30,T=10,B=22, t0=S[0].t, t1=S[S.length-1].t;
+  const X=t=>L+(w-L-R)*((t-t0)/((t1-t0)||1)), Y=v=>T+(h-T-B)*((v-min)/((max-min)||1));
+  x.strokeStyle=col('--border');x.textAlign='right';x.textBaseline='middle';
+  for(let i=0;i<=4;i++){const v=min+(max-min)*i/4;x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();x.fillText(v.toFixed(1),L-6,Y(v));}
+  x.textAlign='left';x.textBaseline='alphabetic';
+  [[t0,'left'],[t1,'right']].forEach(([t,a])=>{x.textAlign=a;x.fillText(new Date(t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),X(t),h-4);});
+  nums.forEach((n,i)=>{
+    const color=COLORS[i%COLORS.length]; x.strokeStyle=color;x.fillStyle=color;x.lineWidth=2;x.beginPath();
+    let started=false,lx,ly; S.forEach(s=>{const v=s.c[n];if(!v)return;const px=X(s.t),py=Y(v);started?x.lineTo(px,py):x.moveTo(px,py);started=true;lx=px;ly=py;});
+    x.stroke(); x.textAlign='left';x.textBaseline='middle';x.font='bold 12px system-ui';x.fillText(n,lx+4,ly);x.font='12px system-ui';
+  });
+  $('r-legend').innerHTML=nums.map((n,i)=>{const p=cur.partants.find(q=>String(q.num)===n);return `<span style="--c:${COLORS[i%COLORS.length]}">${n} ${esc(p?p.nom:'')}</span>`;}).join('')+'<span class="sub" style="--c:transparent">(plus bas = plus joué)</span>';
+}
+
+$('r-table').addEventListener('click',e=>{const s=e.target.closest('[data-star]');if(!s)return;toggleFav(s.dataset.star);});
+$('r-table').addEventListener('change',e=>{const i=e.target.closest('[data-cote]');if(!i)return;const p=cur.partants.find(q=>q.num==i.dataset.cote);p.cote=+i.value||null;save();renderRace();});
+$('r-snap').onclick=()=>{const n=cur.snaps.length;snapshot(cur,cur.partants);save();renderRace();msg(cur.snaps.length>n?'📸 Cotes enregistrées.':'Les cotes n\'ont pas changé depuis le dernier relevé.',true);};
+$('r-refresh').onclick=async()=>{
+  try{cur.partants=await fetchPartants(cur.date,cur.R,cur.C);snapshot(cur,cur.partants);save();renderRace();msg('🔄 Cotes actualisées ('+new Date().toLocaleTimeString('fr-FR')+').',true);}
+  catch(e){msg('⚠️ Actualisation impossible ('+esc(e.message)+'). Tu peux modifier les cotes à la main puis cliquer « Enregistrer les cotes saisies ».');}
+};
+$('r-bet').onclick=()=>{
+  const sel=[...document.querySelectorAll('.sel:checked')].map(c=>+c.value);
+  if(!sel.length){alert('Coche au moins un cheval.');return;}
+  document.querySelector('.tab[data-cat="turf"]').click();
+  $('f-cat').value='turf';toggleCat();
+  $('f-date').value=cur.date;$('f-hippo').value=cur.hippo||'';$('f-race').value=`${cur.R?'R'+cur.R+'C'+cur.C+' — ':''}${cur.libelle}`;
+  if([...$('f-disc').options].some(o=>o.value===cur.disc))$('f-disc').value=cur.disc;
+  $('f-horses').value=sel.join(' - ');
+  const types=['Simple gagnant','Couplé gagnant','Trio','Quarté+','Quinté+'];$('f-ttype').value=types[Math.min(sel.length,5)-1];
+  const p=cur.partants.find(q=>q.num===sel[0]);$('f-odd').value=sel.length===1&&p&&p.cote?p.cote:'';
+  $('f-book').value=$('f-book').value||'ZEturf';
+  $('betForm').scrollIntoView({behavior:'smooth'});$('f-stake').focus();
+};
+
+// favoris
+function toggleFav(nom){const k=fkey(nom);if(state.favs[k])delete state.favs[k];else state.favs[k]={nom,note:'',added:Date.now()};save();renderFavs();if(cur)renderRace();}
+function renderFavs(){
+  const seen={};Object.values(state.races).sort((a,b)=>a.date.localeCompare(b.date)).forEach(r=>(r.partants||[]).forEach(p=>{const k=fkey(p.nom);if(state.favs[k])seen[k]={r,p};}));
+  const F=Object.entries(state.favs).sort((a,b)=>a[0].localeCompare(b[0]));
+  let h='<thead><tr><th>Cheval</th><th>Dernière course vue</th><th>Musique</th><th class="num">Forme</th><th class="num">Cote</th><th>Note perso</th><th></th></tr></thead><tbody>';
+  if(!F.length) h+='<tr><td colspan="7" class="empty">Clique sur ☆ dans une course pour suivre un cheval.</td></tr>';
+  for(const [k,f] of F){const s=seen[k],sc=s?formScore(s.p.mus):null;
+    h+=`<tr><td><b>⭐ ${esc(f.nom)}</b></td><td>${s?`<a href="#" data-open="${esc(s.r.key)}">${new Date(s.r.date+'T12:00').toLocaleDateString('fr-FR')} · ${esc(s.r.hippo)} · ${esc(s.r.libelle)}</a>`:'<span class="sub">—</span>'}</td>
+    <td>${s?musHtml(s.p.mus):'—'}</td><td class="num">${sc==null?'—':`<span class="score ${scoreColor(sc)}">${sc}</span>`}</td><td class="num">${s&&s.p.cote?s.p.cote:'—'}</td>
+    <td><input data-note="${esc(k)}" value="${esc(f.note)}" placeholder="Ex : aime le terrain lourd" style="width:220px;padding:4px 6px"></td>
+    <td><button class="btn small danger" data-unfav="${esc(f.nom)}">🗑️</button></td></tr>`;}
+  $('favTable').innerHTML=h+'</tbody>';
+}
+$('favTable').addEventListener('click',e=>{const t=e.target.closest('[data-unfav],[data-open]');if(!t)return;e.preventDefault();
+  if(t.dataset.unfav)toggleFav(t.dataset.unfav);else openRace(t.dataset.open);});
+$('favTable').addEventListener('change',e=>{const i=e.target.closest('[data-note]');if(!i)return;state.favs[i.dataset.note].note=i.value;save();if(cur)renderRace();});
+$('fav-add').onclick=()=>{const n=$('fav-new').value.trim();if(n&&!isFav(n))toggleFav(n);$('fav-new').value='';};
+fillSaved();renderFavs();
+window.addEventListener('resize',()=>{if(cur&&!$('raceView').classList.contains('hidden'))drawOdds();});
 
 resetForm();render();
 })();
